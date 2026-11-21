@@ -1,0 +1,1120 @@
+/* Панели главы 3: хронология, консоль, гипотезы, автотест. Все классы с префиксом c3-.
+   Палитра и манера как у планшета (tablet.css). */
+
+.c3-layer {
+  --c3-bg: #151619;
+  --c3-side: #18191d;
+  --c3-surface: #1d1f23;
+  --c3-surface-2: #25272c;
+  --c3-hover: #2a2c32;
+  --c3-line: #2a2c31;
+  --c3-line-2: #3a3d44;
+  --c3-text: #e1e3e7;
+  --c3-text-2: #c4c7cd;
+  --c3-muted: #8c919a;
+  --c3-faint: #61666f;
+  --c3-accent: #e8c14f;
+  --c3-accent-ink: #1e1903;
+  --c3-accent-soft: rgba(232, 193, 79, 0.1);
+  --c3-blue: #7c9bd9;
+  --c3-ok: #6cc28b;
+  --c3-warn: #e0a24a;
+  --c3-bad: #dd776d;
+  --c3-gray: #8d929b;
+  --c3-font: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --c3-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, 'Courier New', monospace;
+  --c3-pad: 20px;
+
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  font-family: var(--c3-font);
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--c3-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.c3-layer[hidden],
+.c3-layer [hidden] {
+  display: none !important;
+}
+
+.c3-layer *,
+.c3-layer *::before,
+.c3-layer *::after {
+  box-sizing: border-box;
+}
+
+:where(.c3-layer) button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.c3-layer button:focus-visible,
+.c3-layer input:focus-visible {
+  outline: 2px solid var(--c3-accent);
+  outline-offset: -2px;
+}
+
+.c3-layer button:disabled {
+  cursor: default;
+}
+
+:where(.c3-layer) :where(h2, h3, p, ol, ul, dl, dd) {
+  margin: 0;
+}
+
+:where(.c3-layer) :where(ol, ul) {
+  list-style: none;
+  padding: 0;
+}
+
+.c3-muted {
+  color: var(--c3-muted);
+}
+
+.c3-code {
+  font-family: var(--c3-mono);
+  font-size: 0.92em;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--c3-surface-2);
+  color: var(--c3-text);
+  white-space: nowrap;
+}
+
+.c3-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 9, 0.62);
+}
+
+/* ---------- панель ---------- */
+.c3-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(940px, 94vw);
+  height: min(620px, 90vh);
+  background: var(--c3-bg);
+  border: 1px solid var(--c3-line-2);
+  border-radius: 6px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  outline: none;
+}
+
+.c3-panel-console {
+  width: min(900px, 94vw);
+  height: min(560px, 90vh);
+}
+
+.c3-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--c3-line);
+  background: var(--c3-side);
+}
+
+.c3-head-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.c3-head-title {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.c3-head-title::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: var(--c3-accent);
+  border-radius: 1px;
+  transform: rotate(-4deg);
+  align-self: center;
+}
+
+.c3-head-sub {
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--c3-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c3-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 6px 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--c3-muted);
+}
+
+.c3-close:hover {
+  background: var(--c3-hover);
+  color: var(--c3-text);
+}
+
+.c3-kbd {
+  font-family: var(--c3-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 1px solid var(--c3-line-2);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  color: var(--c3-muted);
+}
+
+.c3-x {
+  font-size: 20px;
+  line-height: 1;
+  width: 18px;
+  text-align: center;
+}
+
+.c3-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.c3-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 16px var(--c3-pad) 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c3-line-2) transparent;
+}
+
+.c3-lead {
+  color: var(--c3-muted);
+  font-size: 12.5px;
+  max-width: 76ch;
+  margin-bottom: 14px !important;
+}
+
+.c3-sec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c3-muted);
+  margin: 0 0 8px;
+}
+
+.c3-sec h3 {
+  font: inherit;
+  color: inherit;
+}
+
+.c3-sec-row {
+  justify-content: space-between;
+  margin-top: 18px;
+}
+
+.c3-count {
+  font-family: var(--c3-mono);
+  font-size: 11px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 400;
+  color: var(--c3-muted);
+  background: var(--c3-surface-2);
+}
+
+.c3-empty {
+  color: var(--c3-muted);
+  padding: 18px 12px;
+  text-align: center;
+  border: 1px dashed var(--c3-line-2);
+  border-radius: 4px;
+  grid-column: 1 / -1;
+}
+
+.c3-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px var(--c3-pad);
+  background: var(--c3-bg);
+  border-top: 1px solid var(--c3-line);
+}
+
+.c3-actions .c3-msg {
+  margin-right: auto;
+}
+
+.c3-actions-btns {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- кнопки, метки, сообщения ---------- */
+.c3-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--c3-line-2);
+  border-radius: 4px;
+  background: var(--c3-surface-2);
+  color: var(--c3-text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.c3-btn:hover:not(:disabled) {
+  background: var(--c3-hover);
+  border-color: #474a52;
+}
+
+.c3-btn-primary {
+  background: var(--c3-accent);
+  border-color: var(--c3-accent);
+  color: var(--c3-accent-ink);
+  font-weight: 600;
+}
+
+.c3-btn-primary:hover:not(:disabled) {
+  background: #f0cc62;
+  border-color: #f0cc62;
+}
+
+.c3-btn:disabled {
+  opacity: 0.42;
+}
+
+.c3-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 21px;
+  padding: 0 8px;
+  border-radius: 3px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(141, 146, 155, 0.14);
+  color: var(--c3-gray);
+}
+
+.c3-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.c3-pill-blue {
+  background: rgba(124, 155, 217, 0.15);
+  color: var(--c3-blue);
+}
+
+.c3-pill-ok {
+  background: rgba(108, 194, 139, 0.14);
+  color: var(--c3-ok);
+}
+
+.c3-msg {
+  font-size: 12.5px;
+  min-width: 0;
+}
+
+.c3-msg-ok,
+.c3-msg-warn {
+  padding: 6px 10px;
+  border-left: 3px solid;
+  border-radius: 0 4px 4px 0;
+  color: var(--c3-text);
+}
+
+.c3-msg-ok {
+  border-color: var(--c3-ok);
+  background: rgba(108, 194, 139, 0.1);
+}
+
+.c3-msg-warn {
+  border-color: var(--c3-warn);
+  background: rgba(224, 162, 74, 0.1);
+}
+
+/* ---------- хронология ---------- */
+.c3-pool {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.c3-pool > li {
+  display: flex;
+}
+
+.c3-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--c3-line-2);
+  border-radius: 4px;
+  background: var(--c3-surface);
+  text-align: left;
+}
+
+.c3-card:hover:not(:disabled) {
+  background: var(--c3-hover);
+  border-color: rgba(232, 193, 79, 0.55);
+}
+
+.c3-card:disabled {
+  opacity: 0.55;
+}
+
+.c3-card-top,
+.c3-slot-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.c3-card-title {
+  font-weight: 600;
+  min-width: 0;
+}
+
+.c3-card-text {
+  color: var(--c3-text-2);
+  font-size: 12.5px;
+}
+
+.c3-date {
+  flex: none;
+  font-family: var(--c3-mono);
+  font-size: 11.5px;
+  color: var(--c3-accent);
+}
+
+.c3-date-none {
+  font-family: var(--c3-font);
+  color: var(--c3-faint);
+}
+
+.c3-axis {
+  font-weight: 400;
+  color: var(--c3-faint);
+}
+
+.c3-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.c3-slot {
+  display: flex;
+  min-height: 64px;
+}
+
+.c3-slot-empty {
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px dashed var(--c3-line-2);
+  border-radius: 4px;
+  color: var(--c3-faint);
+}
+
+.c3-slot-btn {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(232, 193, 79, 0.55);
+  border-radius: 4px;
+  background: var(--c3-accent-soft);
+  text-align: left;
+}
+
+.c3-slot-btn:hover:not(:disabled) {
+  background: rgba(232, 193, 79, 0.16);
+}
+
+.c3-slot-btn .c3-slot-main {
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.c3-slot-num {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--c3-mono);
+  font-size: 12px;
+  border-radius: 3px;
+  background: var(--c3-surface-2);
+  color: var(--c3-muted);
+}
+
+.c3-slot-btn .c3-slot-num {
+  background: var(--c3-accent);
+  color: var(--c3-accent-ink);
+  font-weight: 700;
+}
+
+.c3-slot-free {
+  font-size: 12.5px;
+}
+
+/* ---------- консоль ---------- */
+.c3-con {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 260px;
+}
+
+.c3-con-screen {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0a0b0c;
+  font-family: var(--c3-mono);
+  font-size: 13px;
+}
+
+.c3-con-out {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 12px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: #2e3136 transparent;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.c3-con-row {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #c9ccd2;
+  min-height: 1.45em;
+}
+
+.c3-ln-cmd {
+  color: var(--c3-accent);
+  margin-top: 8px;
+}
+
+.c3-con-row:first-child {
+  margin-top: 0;
+}
+
+.c3-ln-ok {
+  color: var(--c3-ok);
+}
+
+.c3-ln-err {
+  color: var(--c3-warn);
+}
+
+.c3-ln-dim {
+  color: #6b7078;
+}
+
+.c3-con-form {
+  flex: none;
+  padding: 8px 16px 10px;
+  border-top: 1px solid #1f2125;
+  margin: 0;
+}
+
+.c3-con-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #2a2d32;
+  border-radius: 4px;
+  background: #0f1012;
+  cursor: text;
+}
+
+.c3-con-line:focus-within {
+  border-color: rgba(232, 193, 79, 0.6);
+}
+
+.c3-con-prompt {
+  color: var(--c3-accent);
+}
+
+.c3-con-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none !important;
+  background: transparent;
+  color: var(--c3-text);
+  font: inherit;
+  caret-color: var(--c3-accent);
+}
+
+.c3-con-input::placeholder {
+  color: #4e535b;
+}
+
+.c3-con-hint {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: #6b7078;
+  font-family: var(--c3-font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c3-con-hint .c3-kbd {
+  margin: 0 3px 0 6px;
+}
+
+.c3-con-hint .c3-kbd:first-child {
+  margin-left: 0;
+}
+
+.c3-hint-cmd {
+  font-family: var(--c3-mono);
+  color: var(--c3-text-2);
+}
+
+.c3-con-side {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 12px 10px;
+  background: var(--c3-side);
+  border-left: 1px solid var(--c3-line);
+  scrollbar-width: thin;
+  scrollbar-color: var(--c3-line-2) transparent;
+}
+
+.c3-con-side .c3-sec {
+  padding: 0 4px;
+}
+
+.c3-con-cmds {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.c3-cmd {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+}
+
+.c3-cmd:hover:not(:disabled) {
+  background: var(--c3-hover);
+}
+
+.c3-cmd.c3-match {
+  border-color: rgba(232, 193, 79, 0.55);
+  background: var(--c3-accent-soft);
+}
+
+.c3-cmd:disabled {
+  opacity: 0.5;
+}
+
+.c3-cmd-name {
+  font-family: var(--c3-mono);
+  font-size: 12.5px;
+  color: var(--c3-text);
+}
+
+.c3-cmd-desc {
+  font-size: 12px;
+  color: var(--c3-muted);
+}
+
+/* На телефоне с сенсором поле ввода не нужно: команды нажимаются кнопками. */
+.c3-touch .c3-con-form {
+  display: none;
+}
+
+/* ---------- гипотезы ---------- */
+.c3-hypos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.c3-hypo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--c3-line);
+  border-radius: 4px;
+  background: var(--c3-surface);
+}
+
+.c3-hypo-done {
+  border-color: rgba(108, 194, 139, 0.4);
+}
+
+.c3-hypo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.c3-hypo-num {
+  font-family: var(--c3-mono);
+  font-size: 12px;
+  color: var(--c3-muted);
+}
+
+.c3-claim {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.c3-hypo-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--c3-bg);
+  border: 1px solid var(--c3-line);
+}
+
+.c3-hypo-meta dt {
+  font-size: 12px;
+  color: var(--c3-muted);
+}
+
+.c3-hypo-meta dd {
+  color: var(--c3-text-2);
+  font-size: 13px;
+}
+
+.c3-hypo-meta dd + dt {
+  margin-top: 6px;
+}
+
+.c3-hypo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.c3-hypo-actions .c3-btn {
+  flex: 1;
+}
+
+.c3-hypo-note {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+
+/* ---------- автотест ---------- */
+.c3-at-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.c3-at-col {
+  min-width: 0;
+}
+
+.c3-at-blocks,
+.c3-at-scn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.c3-block,
+.c3-step {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 6px 12px;
+  border: 1px solid var(--c3-line-2);
+  border-radius: 4px;
+  background: var(--c3-surface);
+  text-align: left;
+}
+
+.c3-block:hover:not(:disabled),
+.c3-step:hover:not(:disabled) {
+  background: var(--c3-hover);
+}
+
+.c3-block-plus {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  font-family: var(--c3-mono);
+  color: var(--c3-accent);
+}
+
+.c3-block.c3-used {
+  border-style: dashed;
+  background: transparent;
+  color: var(--c3-faint);
+}
+
+.c3-block.c3-used .c3-block-plus {
+  color: var(--c3-faint);
+}
+
+.c3-block:disabled:not(.c3-used),
+.c3-step:disabled {
+  opacity: 0.6;
+}
+
+.c3-step {
+  border-color: rgba(232, 193, 79, 0.45);
+  background: var(--c3-accent-soft);
+}
+
+.c3-step-num {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--c3-mono);
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 3px;
+  background: var(--c3-accent);
+  color: var(--c3-accent-ink);
+}
+
+.c3-step-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.c3-step-x {
+  flex: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--c3-muted);
+}
+
+.c3-at-scn .c3-empty {
+  padding: 22px 12px;
+}
+
+.c3-at-log {
+  padding: 10px 12px;
+  border: 1px solid #1f2125;
+  border-radius: 4px;
+  background: #0a0b0c;
+  font-family: var(--c3-mono);
+  font-size: 12.5px;
+}
+
+.c3-at-cols + .c3-sec {
+  margin-top: 18px;
+}
+
+.c3-log-row {
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding-left: 18px;
+  position: relative;
+}
+
+.c3-log-row::before {
+  position: absolute;
+  left: 0;
+}
+
+.c3-log-ok {
+  color: var(--c3-ok);
+}
+
+.c3-log-ok::before {
+  content: '✓';
+}
+
+.c3-log-bad {
+  color: var(--c3-bad);
+}
+
+.c3-log-bad::before {
+  content: '✗';
+}
+
+.c3-log-dim {
+  color: #6b7078;
+}
+
+.c3-log-wait {
+  animation: c3-blink 1.1s steps(1, end) infinite;
+}
+
+@keyframes c3-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---------- телефон: весь экран ---------- */
+.c3-mobile {
+  --c3-pad: 16px;
+  font-size: 15px;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.c3-mobile .c3-backdrop {
+  background: var(--c3-bg);
+}
+
+.c3-mobile .c3-panel {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.c3-mobile .c3-head {
+  height: auto;
+  min-height: 48px;
+  padding: max(2px, env(safe-area-inset-top)) max(4px, env(safe-area-inset-right)) 2px max(16px, env(safe-area-inset-left));
+}
+
+.c3-mobile .c3-head-title {
+  font-size: 14px;
+}
+
+.c3-mobile .c3-head-sub {
+  font-size: 13px;
+}
+
+.c3-mobile .c3-kbd {
+  display: none;
+}
+
+.c3-mobile .c3-close {
+  width: 44px;
+  height: 44px;
+  justify-content: center;
+  padding: 0;
+}
+
+.c3-mobile .c3-x {
+  font-size: 26px;
+  width: auto;
+}
+
+.c3-mobile .c3-scroll {
+  padding: 12px max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left));
+}
+
+.c3-mobile .c3-lead {
+  font-size: 13px;
+  margin-bottom: 10px !important;
+}
+
+.c3-mobile .c3-actions {
+  padding: 8px max(16px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+.c3-mobile .c3-btn {
+  min-height: 44px;
+  height: auto;
+  padding: 0 16px;
+}
+
+.c3-mobile .c3-card,
+.c3-mobile .c3-slot-btn,
+.c3-mobile .c3-block,
+.c3-mobile .c3-step,
+.c3-mobile .c3-cmd {
+  min-height: 46px;
+}
+
+.c3-mobile .c3-slot {
+  min-height: 52px;
+}
+
+.c3-mobile .c3-card-text,
+.c3-mobile .c3-msg,
+.c3-mobile .c3-sec {
+  font-size: 13px;
+}
+
+.c3-mobile .c3-hypo-meta dd {
+  font-size: 14px;
+}
+
+.c3-mobile .c3-hypo-note {
+  font-size: 13px;
+}
+
+.c3-mobile .c3-con-screen {
+  font-size: 13.5px;
+}
+
+.c3-mobile .c3-con-out {
+  padding-left: max(16px, env(safe-area-inset-left));
+}
+
+.c3-mobile .c3-con-side {
+  padding-right: max(10px, env(safe-area-inset-right));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.c3-mobile .c3-cmd-name {
+  font-size: 14px;
+}
+
+.c3-mobile .c3-cmd-desc {
+  font-size: 12.5px;
+}
+
+.c3-mobile .c3-con-line {
+  height: 44px;
+}
+
+/* Телефон стоя: всё в одну колонку, команды под выводом. */
+@media (orientation: portrait) {
+  .c3-mobile .c3-con {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .c3-mobile .c3-con-side {
+    border-left: 0;
+    border-top: 1px solid var(--c3-line);
+    padding-left: max(10px, env(safe-area-inset-left));
+  }
+
+  .c3-mobile .c3-at-cols {
+    grid-template-columns: 1fr;
+  }
+
+  .c3-mobile .c3-actions {
+    flex-wrap: wrap;
+  }
+
+  .c3-mobile .c3-actions .c3-msg {
+    flex-basis: 100%;
+    margin: 0;
+  }
+
+  .c3-mobile .c3-actions > .c3-btn,
+  .c3-mobile .c3-actions-btns,
+  .c3-mobile .c3-actions-btns .c3-btn {
+    flex: 1;
+  }
+}
+
+/* Телефон лёжа: высоты мало, шапка и подвал ниже. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .c3-mobile .c3-head {
+    min-height: 44px;
+  }
+
+  .c3-mobile .c3-con {
+    grid-template-columns: 1fr minmax(240px, 34%);
+  }
+
+  .c3-mobile .c3-lead {
+    display: none;
+  }
+
+  .c3-mobile .c3-sec-row {
+    margin-top: 12px;
+  }
+
+  .c3-mobile .c3-slots {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c3-log-wait {
+    animation: none;
+  }
+}

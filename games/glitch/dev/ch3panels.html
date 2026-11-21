@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Панели главы 3: предпросмотр</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1a2230;
+        color: #ddd;
+        font-family: system-ui, sans-serif;
+        overflow: hidden;
+        touch-action: none;
+      }
+      /* Подобие 3D-сцены за панелями */
+      #view {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(#0d1322 0 45%, #1c2533 45% 100%);
+      }
+      #ui {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 10;
+      }
+      .dev-bar {
+        position: fixed;
+        left: 10px;
+        top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        z-index: 5;
+        font-size: 12px;
+      }
+      .dev-bar button {
+        font: inherit;
+        padding: 4px 8px;
+      }
+      #selftest {
+        position: fixed;
+        left: 10px;
+        bottom: 10px;
+        right: 10px;
+        max-height: 45vh;
+        overflow: auto;
+        margin: 0;
+        padding: 8px 10px;
+        background: #000c;
+        color: #cfe;
+        font: 12px/1.4 Consolas, monospace;
+        z-index: 100;
+        white-space: pre-wrap;
+      }
+      #selftest:empty {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div class="dev-bar">
+      <button data-dev="timeline">Хронология</button>
+      <button data-dev="console">Консоль</button>
+      <button data-dev="hypo">Гипотезы</button>
+      <button data-dev="autotest">Автотест</button>
+      <button data-dev="print">print() в консоль</button>
+    </div>
+    <div id="ui"></div>
+    <pre id="selftest"></pre>
+    <script type="module" src="./ch3panels.js"></script>
+  </body>
+</html>

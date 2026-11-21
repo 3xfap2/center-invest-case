@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:," />
+    <title>GLITCH: тестовый сайт (iframe)</title>
+    <style>
+      body { margin: 0; background: #111; color: #ddd; font: 13px system-ui; display: flex; height: 100vh; }
+      iframe { flex: 1; border: 0; }
+      #log { width: 320px; overflow-y: auto; padding: 8px; font-family: monospace; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <iframe id="game" src="../index.html?debug=1" allow="autoplay; fullscreen" allowfullscreen></iframe>
+    <div id="log"></div>
+    <script>
+      // Имитация сайта команды по docs/GAME_CONTRACT.md: отвечает init на ready и пишет все сообщения.
+      const params = new URLSearchParams(location.search);
+      const frame = document.getElementById('game');
+      const logEl = document.getElementById('log');
+      window.messages = [];
+      window.addEventListener('message', (e) => {
+        if (e.origin !== location.origin || e.data?.ns !== 1) return;
+        window.messages.push(e.data);
+        logEl.textContent += `${e.data.type} ${JSON.stringify(e.data).slice(0, 160)}\n`;
+        if (e.data.type === 'ready') {
+          frame.contentWindow.postMessage(
+            {
+              ns: 1,
+              type: 'init',
+              playerId: 'p1',
+              nickname: params.get('nick') || 'Матвей',
+              difficulty: params.get('difficulty') || 'easy',
+              save: null,
+              flags: {},
+              muted: true,
+            },
+            location.origin,
+          );
+        }
+      });
+      window.sendToGame = (msg) => frame.contentWindow.postMessage({ ns: 1, ...msg }, location.origin);
+    </script>
+  </body>
+</html>
