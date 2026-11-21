@@ -215,7 +215,7 @@ try {
   await shot('chapter3_end');
   const ach = await ev(() => window.__glitch.game.state.achievements);
   check('достижения главы 3', !!(ach.gl_chapter3 && ach.gl_console && ach.gl_nikita_wrong), Object.keys(ach).filter((k) => /detective|console|nikita_wrong|hypotheses|autotest|chapter3/.test(k)).join(','));
-  check('на итогах главы 3 нет кнопки дальше', (await page.locator('[data-a="next"]').count()) === 0);
+  check('на итогах главы 3 есть кнопка «Глава 4»', (await page.locator('[data-a="next"]').count()) === 1);
 } catch (e) {
   check('прохождение главы 3 без исключений', false, e.message);
   await shot('error').catch(() => {});

@@ -22,6 +22,7 @@ export const DIFFICULTY = {
     shiftSec: 15 * 60, // время смены: уложился, получил звезду
     shiftSec2: 18 * 60, // то же для главы 2
     shiftSec3: 18 * 60, // и для главы 3
+    shiftSec4: 14 * 60, // финал короче
     rowsNeeded: 4, // сколько строк таблицы сравнения нужно в главе 2
     mistakesForStar: 2, // сколько отчётов можно вернуть без потери звезды
   },
@@ -37,6 +38,7 @@ export const DIFFICULTY = {
     shiftSec: 10 * 60,
     shiftSec2: 13 * 60,
     shiftSec3: 13 * 60,
+    shiftSec4: 10 * 60,
     rowsNeeded: 4,
     mistakesForStar: 1,
   },
@@ -52,6 +54,7 @@ export const DIFFICULTY = {
     shiftSec: 7 * 60,
     shiftSec2: 9 * 60,
     shiftSec3: 9 * 60,
+    shiftSec4: 7 * 60,
     rowsNeeded: 5,
     mistakesForStar: 0,
   },
@@ -85,7 +88,7 @@ export function newGame(name, difficulty) {
 
 // Принять сохранение от сайта. Имя и сложность берём из init.
 export function restoreGame(data, name, difficulty) {
-  if (!data || data.v !== 1 || ![1, 2, 3].includes(data.chapter)) return null;
+  if (!data || data.v !== 1 || ![1, 2, 3, 4].includes(data.chapter)) return null;
   game.state = {
     decisions: {},
     mistakes: 0,
@@ -135,6 +138,29 @@ export function beginChapter3() {
   s.ch3 = freshCh3();
   save();
   return s;
+}
+
+// Переход к главе 4 (финал): события главы 3 уходят в prev[3].
+export function beginChapter4() {
+  const s = game.state;
+  s.prev = s.prev || {};
+  s.prev[3] = { flags: s.flags, ending: s.ending || null, playTime: s.playTime || 0, mistakes: s.mistakes || 0, hintsUsed: s.hintsUsed || 0 };
+  s.chapter = 4;
+  s.flags = {};
+  s.scene = 'office';
+  s.pos = null;
+  s.playTime = 0;
+  s.mistakes = 0;
+  s.hintsUsed = 0;
+  s.ending = null;
+  delete s.ch3;
+  s.ch4 = freshCh4();
+  save();
+  return s;
+}
+
+export function freshCh4() {
+  return { evidence: {}, verdicts: {}, to: null, rec: null, savedLis: null };
 }
 
 export function freshCh3() {
