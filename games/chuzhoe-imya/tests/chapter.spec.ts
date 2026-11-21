@@ -42,13 +42,14 @@ test('first-person chapter, UTF-8 bridge, checkpoint restore and every ending', 
 
   await button('Нажми, чтобы начать смену').click()
   await expect(game.locator('.fps-objective')).toContainText('Ответь на звонок Олега')
-  await expect(game.locator('.fps-marker')).toHaveCount(0)
+  await expect(game.getByLabel('Маршрут к текущей цели')).toBeVisible()
   await expect(game.locator('.fps-prompt')).toHaveCount(0)
   // The phone is outside raycast range at spawn. Actually walk to it before using E.
   await page.keyboard.down('w')
   try { await prompt('Взять трубку') } finally { await page.keyboard.up('w') }
   await prompt('Взять трубку')
   await page.keyboard.press('e')
+  await expect(button('Повторить реплику')).toBeVisible()
   await button('Что произойдёт в 21:00?').click({ force: true })
   await button('Повесить трубку').click({ force: true })
 
@@ -78,14 +79,17 @@ test('first-person chapter, UTF-8 bridge, checkpoint restore and every ending', 
   await button('Буква x').click({ force: true })
   await button('Продолжить').click({ force: true })
   await approach('Подойти к доске улик')
+  await expect(game.getByText('Шаг 1 из 3 · Разложи улики')).toBeVisible()
   await button('Прикрепить карточки').click({ force: true })
+  await button('Подсказать пару').click({ force: true })
+  await expect(game.getByLabel('Рекомендуемая пара')).toContainText('Ответ Виктора')
   // Click the actual meshes projected at row 2, columns 2 and 3.
   await page.mouse.click(561, 350)
   await page.mouse.click(879, 350)
   await expect(game.locator('.board-controls')).toContainText('1 / 4')
   await expect(game.getByRole('status')).toContainText('Противоречит')
   if (process.env.CHUZHOE_BOARD_SCREENSHOT) await page.screenshot({ path: process.env.CHUZHOE_BOARD_SCREENSHOT })
-  await button('Продолжить').click({ force: true })
+  await button('Дальше к терминалу').click({ force: true })
 
   await approach('Проверить ранний перевод')
   await game.getByRole('button', { name: /Изучить перевод/ }).click({ force: true })
@@ -129,11 +133,30 @@ test('first-person chapter, UTF-8 bridge, checkpoint restore and every ending', 
   expect(messages.filter(item => item.type === 'save').every(item => (item.data as { v: number }).v === 1
     && Buffer.byteLength(JSON.stringify(item.data)) <= 65536)).toBe(true)
 
+  await button('Дальше к лифту').click({ force: true })
+  await expect(game.getByLabel('Маршрут к текущей цели')).toContainText('Лифт у ресепшена')
+  await approach('Войти в лифт')
+  await button('Спуститься на этаж −1').click({ force: true })
+  await button('Выйти из лифта').click({ force: true })
+  await expect(game.getByText('АРХИВ · ЭТАЖ −1')).toBeVisible()
+  await approach('Открыть архивный шкаф')
+  await button('Папка № 041 · оплата аренды').click({ force: true })
+  await expect(game.getByRole('status')).toContainText('Проверь номер дела')
+  await button('Папка № 014 · оборудование фестиваля').click({ force: true })
+  await approach('Включить запись разговора')
+  await button('Сверить личность по номеру из договора').click({ force: true })
+  await approach('Сверить два перевода')
+  await button('Проверить перевод на •• 8041').click({ force: true })
+  await approach('Составить передачу дела')
+  await button('Проверить •• 8041, приложив договор и подтверждение поставщика').click({ force: true })
+  await expect(dialog('Дело передано')).toBeVisible()
+  await expect.poll(() => messages.some(item => item.type === 'flag' && item.key === 'archive_completed')).toBe(true)
+  await dialog('Дело передано').getByRole('button', { name: 'Закрыть' }).click({ force: true })
+
   for (const [id, label] of [
     ['overblock', 'Перестраховка'], ['lost', 'Деньги ушли'], ['blame', 'Чужая вина'], ['clean', 'Чистая работа'],
   ]) {
-    await dialog('Итоги главы').getByRole('button', { name: 'Закрыть' }).click({ force: true })
-    await button('Режим демонстрации').click({ force: true })
+    await page.keyboard.press('F2')
     await dialog('Режим демонстрации').getByRole('button', { name: label, exact: true }).click({ force: true })
     await expect(dialog('Итоги главы').getByRole('heading', { name: label, exact: true })).toBeVisible()
     await expect.poll(() => messages.filter(item => item.type === 'end').at(-1)?.ending).toBe(id)

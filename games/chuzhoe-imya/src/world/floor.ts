@@ -1,7 +1,7 @@
 import * as T from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 
-export type Place = 'phone' | 'terminal' | 'printer' | 'archive' | 'meeting' | 'maria' | 'laptop' | 'danya' | 'board' | 'coffee' | 'colleague'
+export type Place = 'lift' | 'ledger' | 'voice' | 'compare' | 'handoff' | 'phone' | 'terminal' | 'printer' | 'archive' | 'meeting' | 'maria' | 'laptop' | 'danya' | 'board' | 'coffee' | 'colleague'
 export type Target = { id: Place; mesh: T.Mesh; label: string; stand: T.Vector3; aim: T.Vector3 }
 export type Surface = 'carpet' | 'tile'
 export type Carry = 'phone' | 'papers' | 'cup' | 'folder' | null
@@ -10,6 +10,10 @@ type Screen = { center: T.Vector3; width: number; height: number }
 const floorWidth = 23
 const floorDepth = 17
 export const spawn = new T.Vector3(0.79, 1.64, 6.57)
+export const basementLevel = -4.25
+export const basementSpawn = new T.Vector3(39.45, basementLevel + spawn.y, 4.9)
+export const officeBounds = { x1: -11.43, x2: 11.43, z1: -8, z2: 8.6 }
+export const basementBounds = { x1: 31.2, x2: 48.8, z1: -5.6, z2: 6.7 }
 
 export function createFloor(camera: T.PerspectiveCamera) {
   const scene = new T.Scene()
@@ -307,7 +311,7 @@ export function createFloor(camera: T.PerspectiveCamera) {
   }
   const target = (id: Place, label: string, x: number, y: number, z: number, w: number, h: number, d: number, standX: number, standZ: number, aimX = x, aimY = y, aimZ = z) => {
     const mesh = box(x, y, z, w, h, d, new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), scene, false)
-    targets.push({ id, mesh, label, stand: new T.Vector3(standX, 1.64, standZ), aim: new T.Vector3(aimX, aimY, aimZ) })
+    targets.push({ id, mesh, label, stand: new T.Vector3(standX, spawn.y + (standX > 25 ? basementLevel : 0), standZ), aim: new T.Vector3(aimX, aimY, aimZ) })
   }
 
   // Open office.
@@ -418,6 +422,8 @@ export function createFloor(camera: T.PerspectiveCamera) {
   box(-11.386, 1.20, 6.45, .012, 2.17, .021, '#1c263b')
   box(-11.393, 1.33, 7.54, .04, .26, .13, '#6f7f91')
   box(-11.366, 1.36, 7.54, .01, .047, .062, warmFixtures)
+  plate(-11.365, 2.70, 6.46, 1.68, 'ЛИФТ', 'АРХИВ · ЭТАЖ −1', 'gold', Math.PI / 2)
+  target('lift', 'Войти в лифт', -11.17, 1.40, 6.45, .34, 2.02, 1.94, -9.75, 6.45)
   target('laptop', 'Посмотреть письмо Ирины', -8.25, 1.34, 5.50, .83, .68, .46, -8.27, 6.91)
   target('danya', 'Поговорить с Даней и мамой', -5.45, 1.36, 6.10, 1.5, 1.55, .82, -4.74, 7.13)
   plate(-10.50, 2.57, .95, 2.15, 'КУХНЯ', 'КОФЕ')
@@ -426,6 +432,68 @@ export function createFloor(camera: T.PerspectiveCamera) {
   box(-10.35, 1.36, .615, .29, .12, .028, '#a3b4b9')
   target('coffee', 'Налить кофе', -10.36, 1.42, .64, .61, .62, .45, -10.37, 1.72)
   target('colleague', 'Поговорить со Стасом', -3.16, 1.40, -.98, .56, 1.0, .56, -3.17, .55)
+
+  // Archive level. The elevator moves the camera to this lower floor.
+  const lower = (x: number, y: number, z: number, w: number, h: number, d: number, color: string | T.Material) =>
+    box(x, y + basementLevel, z, w, h, d, color)
+  lower(40, -.12, .55, 18.0, .24, 12.65, '#314052')
+  lower(40, 3.16, .55, 18.08, .13, 12.6, '#27374a')
+  lower(40, 1.53, -5.67, 18, 3.1, .20, '#354659')
+  lower(40, 1.53, 6.75, 18, 3.1, .21, '#36445a')
+  lower(31.10, 1.53, .55, .19, 3.1, 12.6, '#344155')
+  lower(48.88, 1.53, .55, .19, 3.1, 12.6, '#354859')
+  for (let x = 31.4; x < 49; x += 1.65) lower(x, .006, .55, .022, .012, 12.6, '#526070')
+  for (let z = -5.35; z < 6.75; z += 1.55) lower(40, .006, z, 17.7, .012, .018, '#526070')
+  for (const x of [34.9, 40.0, 45.7]) for (const z of [-3.5, 1.2, 4.7]) {
+    lower(x, 3.053, z, 2.1, .085, .27, '#25374a')
+    lower(x, 3.002, z, 1.92, .018, .16, warmFixtures)
+  }
+  const downstairs = new T.PointLight('#ffd5a4', 27, 14, 2)
+  downstairs.position.set(40.4, basementLevel + 2.7, .1)
+  scene.add(downstairs)
+  plate(39.55, basementLevel + 2.58, -5.51, 5.25, 'АРХИВ ОПЕРАЦИЙ', 'ЭТАЖ −1  /  БАНК «ТИХАЯ ЛИНИЯ»')
+  lower(39.47, 1.15, 6.57, 2.02, 2.29, .16, '#5e6d80')
+  lower(39.47, 1.16, 6.46, 1.89, 2.13, .08, '#293b51')
+  lower(39.46, 1.15, 6.41, .035, 2.12, .019, '#151e30')
+  lower(40.72, 1.42, 6.49, .17, .29, .057, '#657386')
+  lower(40.72, 1.46, 6.455, .069, .071, .017, luminous('#83d4b6'))
+  for (let i = 0; i < 3; i++) {
+    const x = 34.6 + i * 1.05
+    lower(x, 1.07, -3.12, .97, 2.13, .63, '#51647a')
+    solid(x, -3.12, .99, .67)
+    for (let row = 0; row < 4; row++) {
+      const y = .25 + row * .5
+      lower(x, y, -2.775, .88, .42, .075, row % 2 ? '#526680' : '#657891')
+      lower(x, y + .06, -2.71, .28, .066, .04, '#afb8bf')
+      lower(x, y - .088, -2.717, .16, .069, .025, '#b5a189')
+    }
+  }
+  plate(35.63, basementLevel + 2.53, -2.75, 3.15, 'ЖУРНАЛЫ', 'КАРТОТЕКА СМЕНЫ')
+  target('ledger', 'Открыть архивный шкаф', 35.63, basementLevel + 1.32, -2.78, 2.93, 1.71, .21, 35.63, -1.30)
+  const station = (x: number, z: number) => {
+    lower(x, .93, z, 2.6, .13, 1.12, '#685e60')
+    for (const dx of [-1.15, 1.15]) lower(x + dx, .47, z, .12, .94, .89, '#34455b')
+    lower(x, .59, z - .32, 2.18, .50, .10, '#324356')
+    solid(x, z, 2.6, 1.12)
+  }
+  station(44.45, -3.02)
+  lower(44.44, 1.17, -2.82, .68, .33, .38, '#334e63')
+  lower(44.44, 1.18, -2.614, .43, .12, .039, luminous('#8fddbf', .60))
+  plate(44.47, basementLevel + 2.24, -3.05, 3.07, 'КОМНАТА СВЯЗИ', 'ЗАПИСИ РАЗГОВОРОВ')
+  target('voice', 'Включить запись разговора', 44.46, basementLevel + 1.29, -2.58, 1.28, 1.1, .24, 44.46, -1.21)
+  station(44.6, 2.24)
+  screen(undefined, 44.61, basementLevel + 1.52, 2.20, 1.37, .81, 'idle')
+  lower(44.60, 1.11, 2.22, .08, .36, .10, '#3b4e66')
+  plate(44.59, basementLevel + 2.42, 2.22, 3.25, 'ТЕРМИНАЛ СВЕРКИ', 'ПРОВЕРКА РЕКВИЗИТОВ')
+  target('compare', 'Сверить два перевода', 44.60, basementLevel + 1.50, 2.58, 1.63, 1.25, .28, 44.6, 4.05)
+  station(35.89, 3.49)
+  lower(35.88, 1.04, 3.78, .65, .067, .42, '#a16f53')
+  lower(35.89, 1.085, 3.79, .43, .014, .32, '#dbc2a4')
+  plate(35.87, basementLevel + 2.23, 3.25, 3.38, 'ДЕЖУРНАЯ СМЕНА', 'ПЕРЕДАЧА ДЕЛ')
+  target('handoff', 'Составить передачу дела', 35.89, basementLevel + 1.28, 3.88, 1.31, .86, .24, 35.89, 5.28)
+  lower(40.98, .59, -.45, 1.68, 1.19, 2.40, '#435469')
+  solid(40.98, -.45, 1.68, 2.40)
+  for (const dx of [-.55, 0, .55]) lower(40.98 + dx, 1.335, -.42, .36, .28, .43, '#958674')
 
   const plant = (x: number, z: number, height: number) => {
     shadow(x, z, 1.0, 1.0)
@@ -482,7 +550,8 @@ export function createFloor(camera: T.PerspectiveCamera) {
 
   const canStand = (x: number, z: number) => {
     const r = .23
-    return x > -11.43 + r && x < 11.43 - r && z > -8.0 + r && z < 8.6 - r
+    const bounds = x > 25 ? basementBounds : officeBounds
+    return x > bounds.x1 + r && x < bounds.x2 - r && z > bounds.z1 + r && z < bounds.z2 - r
       && !colliders.some(area => x + r > area.x1 && x - r < area.x2 && z + r > area.z1 && z - r < area.z2)
   }
   const surfaceAt = (x: number, z: number): Surface =>

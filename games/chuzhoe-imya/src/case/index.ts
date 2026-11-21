@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import rawCase from '../../content/case.json'
+import { continuation, finalArchiveStage } from './continuation'
 
 const stage = z.number().int().min(0).max(11)
 const id = z.string().regex(/^[a-zA-Z0-9_]+$/).max(40)
@@ -79,6 +80,7 @@ const saveSchema = z.object({
   boardAttempts: z.number().int().min(0).max(255),
   decisions: z.partialRecord(txId, decisionRecord),
   submitted: z.boolean(), complete: z.boolean(),
+  archiveStage: z.number().int().min(0).max(finalArchiveStage).default(0),
   layout: z.literal('floor').optional(), work: z.array(id).max(30).default([]),
 })
 
@@ -111,7 +113,7 @@ export class CaseStore {
     this.current = parsed.success ? parsed.data : {
       v: 1, difficulty: selectedDifficulty, step: 0, elapsed: 0, durationSec: 0,
       cards: [], inspected: [], calls: {}, links: [], boardAttempts: 0,
-      decisions: {}, submitted: false, complete: false, layout: 'floor', work: [],
+      decisions: {}, submitted: false, complete: false, archiveStage: 0, layout: 'floor', work: [],
     }
     this.linkTable = new Map(data.links.map(link => [pair(link.a, link.b), link]))
     const legalCards = new Set(data.cards.map(card => card.id))
@@ -122,12 +124,30 @@ export class CaseStore {
         ? 0 : this.current.inspected.includes('A') ? 2 : 1
       this.current.layout = 'floor'
     }
+    if (!this.archiveUnlocked) this.current.archiveStage = 0
     this.spend(0)
   }
 
   get state(): Readonly<CaseSave> { return this.current }
   get settings() { return this.data.difficulty[this.current.difficulty] }
   get remaining() { return this.settings.minutes - this.current.elapsed }
+  get archiveUnlocked() { return this.current.complete && this.current.submitted }
+  get archiveQuest() { return this.archiveUnlocked ? continuation.quests[this.current.archiveStage - 1] : undefined }
+  get archiveComplete() { return this.current.archiveStage === finalArchiveStage }
+
+  descend() {
+    if (!this.archiveUnlocked || this.current.archiveStage !== 0) return false
+    this.current.archiveStage = 1
+    return true
+  }
+
+  resolveArchive(answer: string) {
+    const quest = this.archiveQuest
+    if (!quest || quest.answer !== answer) return false
+    this.current.archiveStage++
+    return true
+  }
+
   get clock() { return this.data.deadline - this.remaining }
   get evidence() { return this.data.cards.filter(card => this.current.cards.includes(card.id)) }
   get transactions() {
@@ -144,7 +164,7 @@ export class CaseStore {
     const requirement = this.data.requirements[this.current.step]
     return (!requirement.call || Boolean(this.current.calls[requirement.call]))
       && (!requirement.inspection || this.current.inspected.includes(requirement.inspection))
-      && (!requirement.attempt || this.current.boardAttempts > 0)
+      && (!requirement.attempt || this.current.links.some(link => link.result !== 'none'))
       && (!requirement.work || this.current.work.includes(requirement.work))
       && (!requirement.decisions || this.hasDecisions)
       && (!requirement.report || this.current.submitted)

@@ -11,7 +11,8 @@
 | `src/world/models/stas.glb` | Quaternius, Worker, [Ultimate Modular Men](https://quaternius.com/packs/ultimatemodularcharacters.html) | CC0 1.0 | Нет |
 | `src/world/models/danya.glb` | Quaternius, Casual Hoodie, [Ultimate Modular Men](https://quaternius.com/packs/ultimatemodularcharacters.html) | CC0 1.0 | Нет |
 | `src/world/Portrait.tsx` | Codex для команды проекта, оригинальные геометрические портреты | Код проекта | Да |
-| `src/world/sound.ts` | Codex для команды проекта, оригинальный синтез | Код проекта | Да |
+| `src/world/sound.ts` | Codex для команды проекта, оригинальный синтез окружения и эффектов | Код проекта | Да |
+| `src/world/voices/*.mp3` | Русская озвучка на основе моделей [Denis](https://huggingface.co/rhasspy/piper-voices/blob/main/ru/ru_RU/denis/medium/MODEL_CARD) и [Dmitri](https://huggingface.co/rhasspy/piper-voices/blob/main/ru/ru_RU/dmitri/medium/MODEL_CARD) проекта OHF Voice, синтез и обработка по ролям | Датасеты CC0. В комплекте готовые записи | Да |
 | `src/world/styles.css`, `src/world/fps.css`, `src/world/Panels.tsx`, `src/world/PhysicalTools.tsx`, `src/main.tsx`, `index.html` | Codex для команды проекта, интерфейс | Код проекта | Да |
 | `src/case/index.ts`, `content/case.json`, `content/dialogue/chapter.json`, `content/career.json`, `game.json` | Codex для команды проекта, на основе GDD команды и указанных источников | Код проекта | Да |
 | `tests/`, конфигурация, README и игровая документация | Codex для команды проекта | Код проекта | Да |

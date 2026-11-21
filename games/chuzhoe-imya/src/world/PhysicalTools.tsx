@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Check, FileText, Folder, ZoomIn } from 'lucide-react'
 import type { CaseStore } from '../case'
-import type { Sound } from './sound'
+import type { OfficeSound, Sound } from './sound'
+import { VoiceReplay } from './VoiceReplay'
+import extra from '../../content/dialogue/voice-extra.json'
 
 type Props = { store: CaseStore; refresh: () => void; play: (sound: Sound) => void }
 
@@ -24,14 +26,15 @@ export function Archive({ store, refresh, play }: Props) {
   </div>
 }
 
-export function Email({ store, refresh, play }: Props) {
+export function Email({ store, refresh, play, sound }: Props & { sound: OfficeSound }) {
   const [zoom, setZoom] = useState(false)
   const [wrong, setWrong] = useState(false)
   const found = store.state.work.includes('mark_email')
   const source = store.data.email
   return <div className="email-tool">
     <div className="email-subject"><FileText size={17} /><strong>Счёт за оборудование</strong></div>
-    <p>Ирина: «Я переписала реквизиты из этого письма. Посмотри, я ведь могла принять его за письмо Виктора?»</p>
+    <p>Ирина: «{extra['irina-email'].text}»</p>
+    <VoiceReplay sound={sound} cue="irina-email" />
     {!zoom && !found ? <>
       <p className="raw-email">{source.sender}</p>
       <button className="primary" onClick={() => { setZoom(true); play('tap') }}><ZoomIn size={17} /> Увеличить адрес</button>
@@ -42,7 +45,7 @@ export function Email({ store, refresh, play }: Props) {
           aria-pressed={found && index === source.addedIndex} disabled={found} onClick={() => {
             const success = store.perform('mark_email', character)
             setWrong(!success)
-            play(success ? 'card' : 'tap')
+            play(success ? 'card' : 'wrong')
             refresh()
           }}>{character}</button>)}
       </span>.example</code></p>

@@ -3,11 +3,13 @@ import * as T from 'three'
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'
 import type { Card, CaseSave } from '../case'
 import { createPeople } from './people'
-import { createFloor, spawn, type Carry, type Floor, type Place, type Surface, type Target } from './floor'
+import { basementBounds, basementLevel, basementSpawn, createFloor, officeBounds, spawn, type Carry, type Floor, type Place, type Surface } from './floor'
+import { createNavigation, type FloorPoint } from './navigation'
 
 type Rectangle = { left: number; top: number; width: number; height: number }
 type Focus = Place | 'report' | null
 type Look = { id: Place; label: string } | null
+export type RouteCue = { angle: number; meters: number }
 
 export type OfficeHandle = {
   capture: () => void
@@ -17,6 +19,7 @@ export type OfficeHandle = {
 
 type OfficeProps = {
   active: boolean
+  basement: boolean
   step: number
   colleagueSpeaking: boolean
   visible: boolean
@@ -30,6 +33,7 @@ type OfficeProps = {
   links: CaseSave['links']
   pinned: boolean
   selectedCard?: string
+  hintCard?: string
   onAim: (target: Look) => void
   onInteract: (id: Place) => void
   onCard: (card: string) => void
@@ -38,7 +42,7 @@ type OfficeProps = {
   onLockStatus: (locked: boolean) => void
   onFallback: (active: boolean) => void
   onScreen: (rect: Rectangle | null) => void
-  onMarker: (point: { x: number; y: number } | null) => void
+  onMarker: (point: RouteCue | null) => void
   onFootstep: (surface: Surface, fast: boolean) => void
 }
 
@@ -61,11 +65,10 @@ function disposeTree(root: T.Object3D) {
 
 function physicalBoard(floor: Floor) {
   const notes = new Map<string, T.Mesh<T.PlaneGeometry, T.MeshBasicMaterial>>()
-  const strings: T.Mesh[] = []
   let signature = ''
   const mark = new T.MeshStandardMaterial({ color: '#ae263b', emissive: '#68172b', emissiveIntensity: .7, roughness: .9 })
   const pins = new T.MeshStandardMaterial({ color: '#b63e42', emissive: '#772d33', emissiveIntensity: .22 })
-  const build = (cards: Card[], links: CaseSave['links'], selected?: string) => {
+  const build = (cards: Card[], links: CaseSave['links'], selected?: string, hint?: string) => {
     const key = cards.map(card => card.id).join(',') + '|' + links.map(link => link.a + ':' + link.b).join(',')
     if (key !== signature) {
       signature = key
@@ -76,7 +79,6 @@ function physicalBoard(floor: Floor) {
         else disposeTree(child)
       }
       notes.clear()
-      strings.length = 0
       cards.forEach((card, index) => {
         const ink = floor.texture(304, 160, ctx => {
           ctx.fillStyle = ['#e0c7a4', '#bcd0c9', '#d1c5d7', '#dfd1ad'][index % 4]
@@ -114,10 +116,12 @@ function physicalBoard(floor: Floor) {
         const curve = new T.QuadraticBezierCurve3(start, mid, end)
         const thread = new T.Mesh(new T.TubeGeometry(curve, 9, .010, 5, false), mark)
         floor.boardNotes.add(thread)
-        strings.push(thread)
       }
     }
-    for (const [id, note] of notes) note.material.color.set(id === selected ? '#ffb978' : '#ffffff')
+    for (const [id, note] of notes) {
+      note.material.color.set(id === selected ? '#ffb978' : id === hint ? '#ffdf78' : '#ffffff')
+      note.scale.setScalar(id === hint && id !== selected ? 1.065 : 1)
+    }
   }
   return { build, notes }
 }
@@ -154,6 +158,29 @@ export const Office = forwardRef<OfficeHandle, OfficeProps>(function Office(prop
     camera.position.copy(spawn)
     camera.lookAt(.81, 1.0, 3.51)
     const floor = createFloor(camera)
+    const guides = [createNavigation(officeBounds, floor.canStand), createNavigation(basementBounds, floor.canStand)]
+    const silhouette = new T.Shape()
+    silhouette.moveTo(0, .35)
+    silhouette.lineTo(.28, -.03)
+    silhouette.lineTo(.19, -.12)
+    silhouette.lineTo(0, .115)
+    silhouette.lineTo(-.19, -.12)
+    silhouette.lineTo(-.28, -.03)
+    silhouette.closePath()
+    const arrow = new T.ShapeGeometry(silhouette).rotateX(-Math.PI / 2)
+    const arrows = new T.InstancedMesh(arrow, new T.MeshBasicMaterial({
+      color: '#38efbf', transparent: true, opacity: .85, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -1,
+    }), 24)
+    arrows.count = 0
+    arrows.frustumCulled = false
+    floor.scene.add(arrows)
+    const arrowPose = new T.Object3D()
+    let basement = false
+    let route: FloorPoint[] = []
+    let routeSource: FloorPoint | undefined
+    let routeTarget: Place | undefined
+    let routeBuilt = 0
     const board = physicalBoard(floor)
     let people: Awaited<ReturnType<typeof createPeople>> | undefined
     let disposed = false
@@ -180,7 +207,6 @@ export const Office = forwardRef<OfficeHandle, OfficeProps>(function Office(prop
     const direction = new T.Vector3()
     const right = new T.Vector3()
     const moving = new T.Vector3()
-    const projected = new T.Vector3()
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
     const viewRotation = new T.Euler(0, 0, 0, 'YXZ')
     let fallback = false
@@ -367,8 +393,18 @@ export const Office = forwardRef<OfficeHandle, OfficeProps>(function Office(prop
     canvas.addEventListener('pointercancel', pointerUp)
 
     const sync = () => {
+      if (live.current.basement !== basement) {
+        setFocus(null)
+        basement = live.current.basement
+        route = []
+        routeSource = undefined
+        arrows.count = 0
+        camera.position.copy(basement ? basementSpawn : spawn)
+        if (basement) camera.lookAt(37.7, basementLevel + 1.4, -.9)
+        else camera.lookAt(.81, 1.0, 3.51)
+      }
       setFocus(live.current.focus)
-      board.build(live.current.pinned ? live.current.cards : [], live.current.links, live.current.selectedCard)
+      board.build(live.current.pinned ? live.current.cards : [], live.current.links, live.current.selectedCard, live.current.hintCard)
       floor.printed.visible = live.current.printed
       floor.hands.visible = Boolean(live.current.carry)
       for (const [kind, object] of Object.entries(floor.carried)) object.visible = live.current.carry === kind
@@ -383,7 +419,7 @@ export const Office = forwardRef<OfficeHandle, OfficeProps>(function Office(prop
       const forward = Number(pressed.has('KeyW') || pressed.has('ArrowUp')) - Number(pressed.has('KeyS') || pressed.has('ArrowDown'))
       const side = Number(pressed.has('KeyD') || pressed.has('ArrowRight')) - Number(pressed.has('KeyA') || pressed.has('ArrowLeft'))
       if (!forward && !side) {
-        camera.position.y = T.MathUtils.lerp(camera.position.y, spawn.y, delta * 12)
+        camera.position.y = T.MathUtils.lerp(camera.position.y, basement ? basementSpawn.y : spawn.y, delta * 12)
         movementPhase = 0
         footAt = 0
         return
@@ -402,7 +438,7 @@ export const Office = forwardRef<OfficeHandle, OfficeProps>(function Office(prop
       if (distance > .0009) {
         movementPhase += distance * 8.2
         footAt += distance
-        if (!reduced) camera.position.y = spawn.y + Math.cos(movementPhase) * (fast ? .047 : .031)
+        if (!reduced) camera.position.y = (basement ? basementSpawn.y : spawn.y) + Math.cos(movementPhase) * (fast ? .047 : .031)
         if (footAt > (fast ? .91 : .63)) {
           footAt = 0
           live.current.onFootstep(floor.surfaceAt(camera.position.x, camera.position.z), fast)
@@ -410,13 +446,45 @@ export const Office = forwardRef<OfficeHandle, OfficeProps>(function Office(prop
       }
     }
 
-    const pointTo = (target: Target) => {
-      camera.updateMatrixWorld(true)
-      projected.copy(target.aim).add(new T.Vector3(0, .45, 0)).project(camera)
-      const back = camera.getWorldDirection(direction).dot(moving.copy(target.aim).sub(camera.position)) < 0
-      const x = T.MathUtils.clamp((back ? -projected.x : projected.x) * 50 + 50, 7, 93)
-      const y = T.MathUtils.clamp(50 - (back ? 0 : projected.y * 50), 18, 82)
-      return { x: Math.round(x), y: Math.round(y) }
+    const guide = (id: Place, now: number): RouteCue | null => {
+      const target = floor.targets.find(item => item.id === id)
+      if (!target) return null
+      const { x, z } = camera.position
+      if (routeTarget !== id || !routeSource
+        || (now - routeBuilt > 315 && Math.hypot(x - routeSource.x, z - routeSource.z) >= .65)) {
+        routeTarget = id
+        routeSource = { x, z }
+        routeBuilt = now
+        route = guides[Number(basement)](routeSource, target.stand)
+        const y = (basement ? basementLevel : 0) + .037
+        let index = 0
+        for (let i = 1; i < route.length && index < 24; i++) {
+          const start = route[i - 1]
+          const next = route[i]
+          const dx = next.x - start.x
+          const dz = next.z - start.z
+          const length = Math.hypot(dx, dz)
+          for (let d = i === 1 ? .95 : .35; d < length && index < 24; d += 1.22) {
+            arrowPose.position.set(start.x + dx * d / length, y, start.z + dz * d / length)
+            arrowPose.rotation.y = Math.atan2(-dx, -dz)
+            arrowPose.updateMatrix()
+            arrows.setMatrixAt(index++, arrowPose.matrix)
+          }
+        }
+        arrows.count = index
+        arrows.instanceMatrix.needsUpdate = true
+      }
+      const points = route.slice(1)
+      while (points.length > 1 && Math.hypot(points[0].x - x, points[0].z - z) < .52) points.shift()
+      const first = points[0] ?? target.stand
+      const dx = first.x - x
+      const dz = first.z - z
+      camera.getWorldDirection(direction)
+      const bearing = Math.atan2(dx, -dz) - Math.atan2(direction.x, -direction.z)
+      const angle = Math.round(Math.atan2(Math.sin(bearing), Math.cos(bearing)) * 180 / Math.PI)
+      let distance = Math.hypot(dx, dz)
+      for (let i = 1; i < points.length; i++) distance += Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z)
+      return { angle, meters: Math.round(distance) }
     }
 
     const animate = (now: number) => {
@@ -435,9 +503,13 @@ export const Office = forwardRef<OfficeHandle, OfficeProps>(function Office(prop
       }
       if (now - markerUpdate > 85) {
         markerUpdate = now
-        const next = roaming && !gaze && state.destination && floor.targets.find(item => item.id === state.destination)
-        const point = next ? pointTo(next) : null
-        const key = point ? point.x + ':' + point.y : ''
+        const next = roaming && gaze?.id !== state.destination ? state.destination : undefined
+        const point = next ? guide(next, now) : null
+        if (!next) {
+          arrows.count = 0
+          routeTarget = undefined
+        }
+        const key = point ? point.angle + ':' + point.meters : ''
         if (key !== marker) {
           marker = key
           state.onMarker(point)
@@ -447,7 +519,7 @@ export const Office = forwardRef<OfficeHandle, OfficeProps>(function Office(prop
       if (now - lastDraw < drawEvery) return
       const elapsed = Math.min((now - lastDraw) / 1000, .09)
       lastDraw = now
-      people?.update(elapsed, state.step, focusMode, camera, state.colleagueSpeaking)
+      if (!basement) people?.update(elapsed, state.step, focusMode, camera, state.colleagueSpeaking)
       if (people) {
         const proxy = floor.targets.find(item => item.id === 'colleague')?.mesh
         if (proxy) { proxy.position.copy(people.stas.position); proxy.position.y += 1.0 }

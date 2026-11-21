@@ -7,6 +7,8 @@ import chapter from '../../content/dialogue/chapter.json'
 import career from '../../content/career.json'
 import type { CaseStore, Decision, Ending, LinkResult, Route, Transaction, TxId } from '../case'
 import { PersonPortrait } from './Portrait'
+import { VoiceReplay } from './VoiceReplay'
+import type { OfficeSound } from './sound'
 
 export const beats = chapter.beats
 export const endings = chapter.endings
@@ -87,7 +89,7 @@ export function Terminal({ store, refresh, play }: PanelProps) {
   </div>
 }
 
-export function Calls({ store, refresh, play, presentation }: PanelProps & { presentation: 'phone' | 'video' | 'in-person' }) {
+export function Calls({ store, refresh, play, sound, presentation }: PanelProps & { sound: OfficeSound; presentation: 'phone' | 'video' | 'in-person' }) {
   const call = store.activeCalls[0]
   if (!call) return <p className="empty"><Phone /> Сейчас новых звонков нет.</p>
   const script = chapter.calls[call.id as keyof typeof chapter.calls]
@@ -116,6 +118,7 @@ export function Calls({ store, refresh, play, presentation }: PanelProps & { pre
                 {key.startsWith('press_') && <FileCheck2 size={16} />}{label}
               </button>)}
           </div>}
+      <VoiceReplay sound={sound} cue={call.id + '-' + (reply ? picked : 'line')} channel={presentation === 'phone' ? 'phone' : presentation === 'video' ? 'radio' : 'live'} />
       {reply && call.cards.length > 0 && <div className="found-evidence"><Check size={16} /> В дело добавлены улики: {store.evidence.filter(card => call.cards.includes(card.id)).map(card => card.title.toLocaleLowerCase('ru')).join(', ')}.</div>}
     </div>
   </div>
