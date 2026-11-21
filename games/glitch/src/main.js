@@ -235,6 +235,7 @@ async function showStart() {
 async function startChapter(rebuild = false) {
   unlockAudio();
   if (rebuild) buildWorlds();
+  ctx.cutscene = false; // прошлая глава могла закрыться посреди катсцены (вступление, меню отладки)
   chapter = createChapter1(ctx);
   if (!tablet) tablet = createTablet(uiRoot, tabletCallbacks);
   tablet.refresh?.();

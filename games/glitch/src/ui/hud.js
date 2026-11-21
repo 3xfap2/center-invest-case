@@ -29,7 +29,7 @@ export function createHud(root) {
 
   bus.on('prompt', (label) => {
     cross.classList.toggle('on', !!label);
-    if (label && !isTouch) {
+    if (label) {
       prompt.textContent = promptKey + label;
       prompt.classList.remove('hidden');
     } else prompt.classList.add('hidden');

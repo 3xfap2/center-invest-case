@@ -699,7 +699,7 @@ button {
 
 .tbtn-tab {
   right: max(20px, env(safe-area-inset-right));
-  bottom: calc(max(40px, env(safe-area-inset-bottom)) + 64px);
+  bottom: calc(max(40px, env(safe-area-inset-bottom)) + 84px);
 }
 
 .rotate-hint {
@@ -938,9 +938,21 @@ button {
 
 .tbtn-pause {
   right: max(20px, env(safe-area-inset-right));
-  bottom: calc(max(40px, env(safe-area-inset-bottom)) + 128px);
+  bottom: calc(max(40px, env(safe-area-inset-bottom)) + 148px);
   min-width: 52px;
   font-family: var(--mono);
+}
+.tbtn-fs {
+  right: max(20px, env(safe-area-inset-right));
+  bottom: calc(max(40px, env(safe-area-inset-bottom)) + 212px);
+  min-width: 52px;
+  font-size: 20px;
+}
+.fs-tip {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 4px 0 0;
 }
 .debug-panel {
   width: 300px;
@@ -950,4 +962,73 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Кнопка-ладонь на телефоне: прозрачная, пока трогать нечего; жёлтая, когда можно взаимодействовать */
+.tbtn-palm {
+  position: absolute;
+  pointer-events: auto;
+  right: max(22px, env(safe-area-inset-right));
+  bottom: max(36px, env(safe-area-inset-bottom));
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  background: rgba(13, 17, 23, 0.28);
+  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.tbtn-palm svg {
+  width: 40px;
+  height: 40px;
+  fill: currentColor;
+}
+.tbtn-palm.ready {
+  background: var(--accent);
+  border-color: #ffe08a;
+  color: #2a1f00;
+  box-shadow: 0 0 18px rgba(242, 201, 76, 0.65);
+  animation: palm-pulse 1.4s ease-in-out infinite;
+}
+.tbtn-palm:active {
+  transform: scale(0.93);
+}
+@keyframes palm-pulse {
+  50% {
+    box-shadow: 0 0 30px rgba(242, 201, 76, 0.95);
+  }
+}
+
+/* Строка задачи внутри планшета */
+.tb-guide {
+  padding: 9px 16px;
+  background: #2a2410;
+  border-bottom: 1px solid #4a3f14;
+  color: var(--accent);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Меню отладки сверху по центру: не мешает ладони, планшету и подсказке клавиш */
+.debug-menu {
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+}
+.debug-panel {
+  bottom: auto;
+  top: 34px;
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
 }

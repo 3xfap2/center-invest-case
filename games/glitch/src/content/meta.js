@@ -1,16 +1,9 @@
 // Достижения, концовки и этапы прогресса для сайта. Описание: docs/ACHIEVEMENTS.md, docs/FLAGS.md.
 
-export const ACHIEVEMENTS = {
-  gl_first_bug: 'Первый баг',
-  gl_not_a_bug: 'Это не баг',
-  gl_reproduced: 'Воспроизвёл',
-  gl_clean_report: 'Отчёт с первого раза',
-  gl_duplicate: 'Тот же профиль',
-  gl_chalk: 'След в темноте',
-  gl_evidence: 'Доказательство сохранено',
-  gl_chapter1: 'Первый рабочий день',
-  gl_no_hints: 'Сам разобрался',
-};
+// Список достижений лежит в achievements.json в корне игры: его же читает сайт.
+import ACH_LIST from '../../achievements.json';
+
+export const ACHIEVEMENTS = Object.fromEntries(ACH_LIST.map((a) => [a.id, a.title]));
 
 // Этапы сюжета: флаг события -> [step, percent].
 export const PROGRESS = [
