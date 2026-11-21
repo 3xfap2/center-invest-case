@@ -1,0 +1,573 @@
+{
+  "deadline": 1260,
+  "inspectionMinutes": 5,
+  "callMinutes": 15,
+  "wrongLinkMinutes": 5,
+  "difficulty": {
+    "easy": {
+      "minutes": 240,
+      "hints": true
+    },
+    "normal": {
+      "minutes": 180,
+      "hints": false
+    },
+    "hard": {
+      "minutes": 150,
+      "hints": false
+    }
+  },
+  "factors": {
+    "new_recipient": [
+      "Новый получатель",
+      "Центр раньше не платил по этим реквизитам."
+    ],
+    "new_account": [
+      "Новый счёт",
+      "Счёт открыт недавно. Сравните даты."
+    ],
+    "changed": [
+      "Смена реквизитов",
+      "Сравните с прошлой оплатой и подтвердите смену по известному контакту."
+    ],
+    "amount": [
+      "Необычная сумма",
+      "Размер платежа привлекает внимание. Проверьте назначение."
+    ],
+    "linked": [
+      "Связь с другим платежом",
+      "Есть ранняя операция в этом учебном деле."
+    ],
+    "familiar": [
+      "Известные реквизиты",
+      "Получатель совпадает с проверенным договором."
+    ],
+    "refund": [
+      "Подтверждённый возврат",
+      "Есть заявка волонтёра и чеки на поездку."
+    ]
+  },
+  "transactions": [
+    {
+      "id": "A",
+      "letter": "А",
+      "time": "17:57",
+      "amount": 480000,
+      "recipient": "Новые реквизиты · •• 8041",
+      "risk": 87,
+      "factors": [
+        "new_recipient",
+        "new_account",
+        "changed",
+        "amount"
+      ],
+      "stage": 1,
+      "cards": [
+        "new_recipient",
+        "new_account",
+        "changed_details"
+      ]
+    },
+    {
+      "id": "C",
+      "letter": "В",
+      "time": "16:42",
+      "amount": 12000,
+      "recipient": "Даниил К. · •• 8041",
+      "risk": 72,
+      "factors": [
+        "linked"
+      ],
+      "stage": 8,
+      "cards": [
+        "trace",
+        "cashout"
+      ]
+    },
+    {
+      "id": "B",
+      "letter": "Б",
+      "time": "18:36",
+      "amount": 480000,
+      "recipient": "Виктор · •• 3027",
+      "risk": 19,
+      "factors": [
+        "familiar",
+        "amount"
+      ],
+      "stage": 10,
+      "cards": [
+        "quote"
+      ]
+    },
+    {
+      "id": "D",
+      "letter": "Г",
+      "time": "18:39",
+      "amount": 1860,
+      "recipient": "Волонтёр · •• 2760",
+      "risk": 8,
+      "factors": [
+        "refund"
+      ],
+      "stage": 10,
+      "cards": [
+        "bus_refund"
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "id": "new_recipient",
+      "stage": 1,
+      "type": "Терминал",
+      "title": "Получатель впервые",
+      "detail": "Молодёжный центр впервые переводит деньги на счёт •• 8041. В платеже указана оплата оборудования.",
+      "stamp": "17:57"
+    },
+    {
+      "id": "new_account",
+      "stage": 1,
+      "type": "Терминал",
+      "title": "Счёту пять дней",
+      "detail": "Счёт •• 8041 открыт пять дней назад. В письме утверждают, что этим счётом пользуются с прошлого месяца.",
+      "stamp": "Регистрация"
+    },
+    {
+      "id": "changed_details",
+      "stage": 1,
+      "type": "Терминал",
+      "title": "Изменение платёжных данных",
+      "detail": "Платёж на •• 8041 связан с заказом оборудования. В заявке есть отметка о замене реквизитов. Последние цифры ИНН поставщика: 7218.",
+      "stamp": "17:57"
+    },
+    {
+      "id": "old_details",
+      "stage": 4,
+      "type": "История",
+      "title": "Прошлая оплата",
+      "detail": "В прошлом месяце центр платил Виктору по договору на •• 3027. Счёт в новом платеже другой.",
+      "stamp": "Прошлый месяц"
+    },
+    {
+      "id": "oleg",
+      "stage": 0,
+      "type": "Звонок",
+      "title": "Слова Олега",
+      "detail": "Олег сказал по телефону, что поставщик сменил реквизиты. Он считает, что бухгалтер успела подтвердить это до заявки.",
+      "stamp": "Олег"
+    },
+    {
+      "id": "email",
+      "stage": 6,
+      "type": "Письмо",
+      "title": "Одна буква в адресе",
+      "detail": "Сверка с договором выявила замену одной буквы в адресе отправителя. В письме указан счёт •• 8041.",
+      "stamp": "17:49"
+    },
+    {
+      "id": "victor",
+      "stage": 5,
+      "type": "Звонок",
+      "title": "Ответ Виктора",
+      "detail": "Виктор говорит, что письмо не его. Реквизиты по договору прежние: •• 3027. Оборудование придержат до 21:00.",
+      "stamp": "Виктор"
+    },
+    {
+      "id": "trace",
+      "stage": 8,
+      "type": "Терминал",
+      "title": "Счёт на имя Дани",
+      "detail": "Ранний перевод на 12 000 ₽ ушёл на •• 8041. Это счёт Даниила К., 15 лет. По имени владельца можно сделать только предварительный вывод.",
+      "stamp": "16:42"
+    },
+    {
+      "id": "danya",
+      "stage": 9,
+      "type": "Звонок",
+      "title": "Карта была у другого",
+      "detail": "При маме Даня рассказал о подработке из мессенджера. За 3 000 ₽ он отдал карту на неделю. Доступ к деньгам получил другой человек.",
+      "stamp": "Даня"
+    },
+    {
+      "id": "cashout",
+      "stage": 8,
+      "type": "Терминал",
+      "title": "Деньги ушли дальше",
+      "detail": "Меньший платёж быстро вывели. Доступ зафиксирован с устройства, которым Даня обычно не пользуется. Это отдельный сигнал.",
+      "stamp": "16:47"
+    },
+    {
+      "id": "dates",
+      "stage": 2,
+      "type": "Сводка",
+      "title": "Журнал согласования",
+      "detail": "Заявку на платёж приняли в 17:57. Запись о подтверждении новых реквизитов появилась в 18:03, уже после заявки.",
+      "stamp": "17:57 / 18:03"
+    },
+    {
+      "id": "bus_refund",
+      "stage": 10,
+      "type": "Документ",
+      "title": "Билеты волонтёра",
+      "detail": "К возврату приложены билеты на автобус и заявка координатора. Получатель •• 2760 участвовал в подготовке фестиваля.",
+      "stamp": "1 860 ₽"
+    },
+    {
+      "id": "quote",
+      "stage": 4,
+      "type": "Документ",
+      "title": "Счёт по договору",
+      "detail": "Договор с Виктором был подписан месяц назад. В нём счёт •• 3027, хотя в инструкции к новому платежу утверждается, что •• 8041 действует с прошлого месяца.",
+      "stamp": "•• 3027"
+    },
+    {
+      "id": "amount",
+      "stage": 7,
+      "type": "Терминал",
+      "title": "Крупная сумма",
+      "detail": "480 000 ₽ выглядит необычно. Такой же платёж указан в настоящем договоре. Сумма сама по себе ничего не доказывает.",
+      "stamp": "Сложный режим"
+    }
+  ],
+  "links": [
+    {
+      "a": "email",
+      "b": "victor",
+      "result": "contradicts",
+      "note": "Поставщик отрицает смену реквизитов из письма."
+    },
+    {
+      "a": "oleg",
+      "b": "dates",
+      "result": "contradicts",
+      "note": "Подтверждение записали после заявки, хотя Олег считал иначе."
+    },
+    {
+      "a": "trace",
+      "b": "danya",
+      "result": "contradicts",
+      "note": "Счёт оформлен на Даню, но доступ к нему получил кто-то другой."
+    },
+    {
+      "a": "new_account",
+      "b": "quote",
+      "result": "contradicts",
+      "note": "Счёт, открытый пять дней назад, не мог действовать весь прошлый месяц."
+    },
+    {
+      "a": "email",
+      "b": "new_recipient",
+      "result": "confirms",
+      "note": "Реквизиты в письме совпадают с первым переводом на этот счёт."
+    },
+    {
+      "a": "new_recipient",
+      "b": "trace",
+      "result": "confirms",
+      "note": "У крупного и раннего платежей один и тот же счёт •• 8041."
+    },
+    {
+      "a": "trace",
+      "b": "cashout",
+      "result": "confirms",
+      "note": "Вывод последовал вскоре после раннего платежа на карту."
+    },
+    {
+      "a": "danya",
+      "b": "cashout",
+      "result": "confirms",
+      "note": "Рассказ Дани согласуется с сигналом о доступе с чужого устройства."
+    },
+    {
+      "a": "old_details",
+      "b": "victor",
+      "result": "confirms",
+      "note": "История платежей и слова Виктора указывают на •• 3027."
+    },
+    {
+      "a": "quote",
+      "b": "old_details",
+      "result": "confirms",
+      "note": "Подтверждённый счёт совпал с предыдущей оплатой."
+    },
+    {
+      "a": "email",
+      "b": "bus_refund",
+      "result": "none",
+      "note": "Возврат за билеты связан с другой заявкой и другим получателем."
+    }
+  ],
+  "calls": [
+    {
+      "id": "opening",
+      "stage": 0,
+      "character": "oleg",
+      "cards": [
+        "oleg"
+      ],
+      "press": []
+    },
+    {
+      "id": "maria",
+      "stage": 3,
+      "character": "maria",
+      "cards": [],
+      "press": [
+        {
+          "id": "press_timeline",
+          "needs": [
+            "dates"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "victor",
+      "stage": 5,
+      "character": "victor",
+      "cards": [
+        "victor"
+      ],
+      "press": [
+        {
+          "id": "press_contract",
+          "needs": [
+            "old_details"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "danya",
+      "stage": 9,
+      "character": "danya",
+      "cards": [
+        "danya"
+      ],
+      "press": [
+        {
+          "id": "press_trace",
+          "needs": [
+            "trace"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hard_oleg",
+      "stage": 7,
+      "character": "oleg",
+      "cards": [],
+      "press": [],
+      "hard": true,
+      "optional": true
+    },
+    {
+      "id": "oleg",
+      "stage": 2,
+      "character": "oleg",
+      "cards": [],
+      "press": [],
+      "optional": true
+    }
+  ],
+  "boardUnlock": [
+    "amount"
+  ],
+  "hardOnly": [
+    "amount"
+  ],
+  "requirements": [
+    {
+      "call": "opening"
+    },
+    {
+      "inspection": "A"
+    },
+    {
+      "work": "take_log"
+    },
+    {
+      "call": "maria"
+    },
+    {
+      "work": "take_contract"
+    },
+    {
+      "call": "victor"
+    },
+    {
+      "work": "mark_email"
+    },
+    {
+      "work": "pin_cards",
+      "attempt": true
+    },
+    {
+      "inspection": "C"
+    },
+    {
+      "call": "danya"
+    },
+    {
+      "decisions": true
+    },
+    {
+      "report": true
+    }
+  ],
+  "rules": {
+    "reportMinutes": 5,
+    "correct": {
+      "A": [
+        "hold",
+        "block"
+      ],
+      "B": [
+        "approve"
+      ],
+      "C": [
+        "block"
+      ],
+      "D": [
+        "approve"
+      ]
+    },
+    "support": {
+      "A": [
+        [
+          "email",
+          "victor"
+        ],
+        [
+          "email",
+          "new_recipient"
+        ],
+        [
+          "new_account",
+          "quote"
+        ]
+      ],
+      "B": [
+        [
+          "victor"
+        ],
+        [
+          "old_details"
+        ],
+        [
+          "quote"
+        ]
+      ],
+      "C": [
+        [
+          "danya",
+          "trace"
+        ],
+        [
+          "danya",
+          "cashout"
+        ]
+      ],
+      "D": [
+        [
+          "bus_refund"
+        ]
+      ]
+    },
+    "endings": {
+      "clean": "clean",
+      "overblock": "overblock",
+      "lost": "lost",
+      "blame": "blame"
+    },
+    "achievements": {
+      "clean": "ci_ch1_clean",
+      "noOverblock": "ci_ch1_no_overblock",
+      "danya": "ci_ch1_danya_safe",
+      "fast": "ci_ch1_fast",
+      "fullReport": "ci_ch1_full_report"
+    }
+  },
+  "work": [
+    {
+      "id": "queue_print",
+      "stage": 2,
+      "adds": [],
+      "requires": []
+    },
+    {
+      "id": "take_log",
+      "stage": 2,
+      "adds": [
+        "dates"
+      ],
+      "requires": [
+        "queue_print"
+      ]
+    },
+    {
+      "id": "take_contract",
+      "stage": 4,
+      "adds": [
+        "old_details",
+        "quote"
+      ],
+      "requires": [],
+      "answer": "7218"
+    },
+    {
+      "id": "mark_email",
+      "stage": 6,
+      "adds": [
+        "email"
+      ],
+      "requires": [],
+      "answer": "x"
+    },
+    {
+      "id": "pin_cards",
+      "stage": 7,
+      "adds": [],
+      "requires": []
+    }
+  ],
+  "archive": {
+    "ending": "7218",
+    "folders": [
+      {
+        "code": "7291",
+        "name": "Поставка мебели",
+        "year": "2026"
+      },
+      {
+        "code": "7128",
+        "name": "Кабельные работы",
+        "year": "2025"
+      },
+      {
+        "code": "7218",
+        "name": "Комплект оборудования",
+        "year": "2026"
+      },
+      {
+        "code": "1278",
+        "name": "Прожекторы",
+        "year": "2025"
+      }
+    ]
+  },
+  "email": {
+    "sender": "contract@svet-mayax.example",
+    "verified": "contract@svet-mayak.example",
+    "characters": [
+      "m",
+      "a",
+      "y",
+      "a",
+      "x"
+    ],
+    "addedIndex": 4
+  }
+}

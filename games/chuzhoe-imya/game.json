@@ -1,0 +1,11 @@
+{
+  "id": "chuzhoe-imya",
+  "title": "Чужое имя",
+  "profession": "Специалист по противодействию мошенничеству в банке",
+  "version": "0.1.0",
+  "entry": "index.html",
+  "approxSizeMB": 1,
+  "minutes": 18,
+  "controls": "WASD и мышь · Shift быстрее · E для действия · Tab задачи",
+  "credits": "CREDITS.md"
+}
