@@ -326,7 +326,9 @@ func TestStatic(t *testing.T) {
 		{"/games/nope/index.html", "", "", 404}, // a missing game is a real 404, not the site
 		{"/games/nope", "", "", 404},
 		{"/missing.png", "", "", 404},
-		{"/empty/", "", "", 404},                       // no directory listing
+		{"/empty/", "SITE", "no-cache", 200},           // no directory listing: a folder without index.html is the site
+		{"/games", "SITE", "no-cache", 200},            // the site's game select page, not the games folder
+		{"/games/", "SITE", "no-cache", 200},           // same page; the games folder itself is never listed
 		{"/../../etc/passwd", "SITE", "no-cache", 200}, // cleaned to /etc/passwd → the site page, never a file outside STATIC_DIR
 	}
 	for _, c := range cases {

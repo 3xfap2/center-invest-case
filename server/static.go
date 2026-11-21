@@ -27,10 +27,10 @@ func staticHandler(dir string) http.Handler {
 		}
 		info, err := fs.Stat(fsys, p)
 		if err == nil && info.IsDir() {
-			// No directory listings: a folder works only if it has an index.html.
-			if _, err := fs.Stat(fsys, path.Join(p, "index.html")); err != nil {
-				http.NotFound(w, r)
-				return
+			// No directory listings: a folder without an index.html is treated as missing.
+			// So /games (the site's game select page) reaches index.html, although web/dist/games/ exists.
+			if _, ierr := fs.Stat(fsys, path.Join(p, "index.html")); ierr != nil {
+				err = fs.ErrNotExist
 			}
 		}
 		if err != nil {
