@@ -5,6 +5,7 @@ import { bus } from '../core/events.js';
 import { sfx } from '../core/audio.js';
 import { isTouch } from '../core/input.js';
 import { game } from '../core/state.js';
+import { voice } from '../core/voice.js';
 
 const NAMES = { irina: 'Ирина', timur: 'Тимур', lis: 'Лис', me: 'Ты', system: '' };
 
@@ -85,6 +86,7 @@ export function createDialogue(root) {
     sp.className = `speaker ${who}`;
     opts.innerHTML = '';
     next.textContent = '';
+    voice.say(who, node.text); // озвучка по исходному тексту (до подстановки ника)
     const text = fill(node.text);
     await typeText(text);
     if (node.options?.length) {
@@ -127,6 +129,7 @@ export function createDialogue(root) {
       queue.unshift(...branch);
     }
     active = false;
+    voice.stop();
     el.classList.add('hidden');
     bus.emit('dialogue:close');
   }
