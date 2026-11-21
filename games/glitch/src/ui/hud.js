@@ -30,6 +30,26 @@ export function createHud(root) {
   const gfx = el.querySelector('.glitch-fx');
   const timer = el.querySelector('.shift-timer');
   const buildBadge = el.querySelector('.build-badge');
+  let objectiveText = '';
+  // Та же задача внутри планшета (за ним HUD не виден). Обновляется при смене задачи и при открытии планшета.
+  function updateGuide() {
+    const panel = document.querySelector('.tb-panel');
+    if (!panel) return;
+    let g = panel.querySelector('.tb-guide');
+    if (!objectiveText) {
+      g?.remove();
+      return;
+    }
+    if (!g) {
+      g = document.createElement('div');
+      g.className = 'tb-guide';
+      panel.insertBefore(g, panel.querySelector('.tb-body'));
+    }
+    let inner = objectiveText.replace(/(Планшет \([^)]*\)|«Планшет»),\s*/, '');
+    inner = inner.charAt(0).toUpperCase() + inner.slice(1);
+    if (g.textContent !== `Задача: ${inner}`) g.textContent = `Задача: ${inner}`;
+  }
+  bus.on('tablet:open', updateGuide);
 
   bus.on('prompt', (label) => {
     cross.classList.toggle('on', !!label);
@@ -66,6 +86,8 @@ export function createHud(root) {
       timer.classList.toggle('over', over);
     },
     setObjective(text) {
+      objectiveText = text || '';
+      updateGuide();
       if (!text) {
         obj.classList.add('hidden');
         return;

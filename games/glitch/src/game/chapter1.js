@@ -206,20 +206,6 @@ export function createChapter1(ctx) {
       lastObjective = text;
       hud.setObjective(text);
     }
-    // Та же задача видна внутри планшета, иначе за ним её не видно.
-    const panel = document.querySelector('.tb-panel');
-    if (panel) {
-      let el = panel.querySelector('.tb-guide');
-      if (!el) {
-        el = document.createElement('div');
-        el.className = 'tb-guide';
-        panel.insertBefore(el, panel.querySelector('.tb-body'));
-      }
-      // Планшет уже открыт: убираем «Планшет (Tab), » из начала.
-      let inner = text.replace(/(Планшет \([^)]*\)|«Планшет»),\s*/, '');
-      inner = inner.charAt(0).toUpperCase() + inner.slice(1);
-      if (el.textContent !== `Задача: ${inner}`) el.textContent = `Задача: ${inner}`;
-    }
   }
 
   // ---------- Фонарь ----------
@@ -954,9 +940,12 @@ export function createChapter1(ctx) {
       const durationSec = Math.round(s.playTime || 0);
       const inTime = durationSec <= d.shiftSec;
       const careful = !!ev.chalk_note || flag('clock_checked');
-      let stars = 1;
-      if ((s.mistakes || 0) <= d.mistakesForStar) stars += 1;
-      if (inTime && careful) stars += 1;
+      const starRules = [
+        { text: 'Глава пройдена', done: true },
+        { text: d.mistakesForStar === 0 ? 'Ни одной ошибки в отчётах' : `Ошибок в отчётах: не больше ${d.mistakesForStar}`, done: (s.mistakes || 0) <= d.mistakesForStar },
+        { text: `Уложился в смену: ${Math.round((d.shiftSec) / 60)} мин`, done: durationSec <= (d.shiftSec) },
+      ];
+      const stars = starRules.filter((r) => r.done).length;
       const timeBonus = Math.round(Math.max(0, d.shiftSec - durationSec) / d.shiftSec * 300);
       const score = Math.max(
         0,
@@ -974,6 +963,7 @@ export function createChapter1(ctx) {
       if (stars === 3) unlock('gl_three_stars');
       const meta = ENDINGS[ending];
       return {
+        starRules,
         chapterNo: 1,
         teaser: 'Дальше: глава 2. Комната, которой нет.',
         ending,

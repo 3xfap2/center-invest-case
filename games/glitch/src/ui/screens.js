@@ -145,7 +145,7 @@ export function createScreens(root) {
     },
 
     // Финал главы: что стало с героями и карточка профессии.
-    chapterEnd({ chapterNo = 1, endingTitle, characters, stars, score, skillsUsed, career, teaser, hasNext = false }) {
+    chapterEnd({ chapterNo = 1, endingTitle, characters, stars, starRules = [], score, skillsUsed, career, teaser, hasNext = false }) {
       return new Promise((resolve) => {
         const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
         const s = show(
@@ -154,6 +154,7 @@ export function createScreens(root) {
               <div class="end-kicker">Глава ${chapterNo} завершена</div>
               <h2>${esc(endingTitle)}</h2>
               <div class="stars" aria-label="Звёзды: ${stars} из 3">${starStr}</div>
+              <ul class="star-rules">${starRules.map((r) => `<li class="${r.done ? '' : 'no'}"><span>${r.done ? '★' : '☆'}</span>${esc(r.text)}</li>`).join('')}</ul>
               <p class="score">Очки: ${score}</p>
               <h3>Что стало с героями</h3>
               <ul class="heroes">

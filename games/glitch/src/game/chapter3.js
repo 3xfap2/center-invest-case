@@ -124,7 +124,7 @@ export function createChapter3(ctx) {
   function openTimeline() {
     // перемешиваем один раз на главу: панель сохраняет раскладку, пока набор и порядок карточек те же
     if (!C3().cardOrder) C3().cardOrder = TRACES.map((t) => t.id).sort(() => Math.random() - 0.5);
-    const cards = C3().cardOrder.map((id) => TRACES.find((t) => t.id === id)).map((t) => ({ id: t.id, title: t.title, text: t.text, date: t.date }));
+    const cards = C3().cardOrder.map((id) => TRACES.find((t) => t.id === id)).map((t) => ({ id: t.id, title: t.title, text: t.text, date: t.date || (diff().strict ? null : t.softDate) })); // на сложном уровне две даты нужно вывести самому
     panels.timeline.open({
       cards,
       onSubmit: (ids) => {
@@ -136,7 +136,7 @@ export function createChapter3(ctx) {
           const firstWrong = ids.findIndex((id, i) => id !== right[i]);
           sfx.fail();
           save();
-          return { ok: false, message: `Не сходится с ${firstWrong + 1}-го места. Подсказка: блокнот ссылается на схему с доски, письмо написано после закрытия отчёта.` };
+          return { ok: false, message: diff().strict ? `Не сходится с ${firstWrong + 1}-го места. Блокнот ссылается на схему с доски, письмо написано после закрытия отчёта.` : `Не сходится с ${firstWrong + 1}-го места. Расставь карточки по датам: от ранней к поздней.` };
         }
         sfx.success();
         setFlag('timeline_done');
@@ -664,6 +664,7 @@ export function createChapter3(ctx) {
         if (disposed) return;
         ctx.cutscene = false;
         await screens.fadeIn();
+        pushChat('system', 'Глава 3. Утро релиза');
         later(300, () => talk(D3.start));
         later(2500, () => chat('start'));
       }
@@ -680,9 +681,12 @@ export function createChapter3(ctx) {
       const ending = forceEnding || ((s.mistakes || 0) === 0 ? 'gl_ch3_thorough' : 'gl_ch3_standard');
       const durationSec = Math.round(s.playTime || 0);
       const shift = d.shiftSec3 || d.shiftSec;
-      let stars = 1;
-      if ((s.mistakes || 0) <= d.mistakesForStar) stars += 1;
-      if (durationSec <= shift && flag('autotest_done')) stars += 1;
+      const starRules = [
+        { text: 'Глава пройдена', done: true },
+        { text: d.mistakesForStar === 0 ? 'Ни одной ошибки' : `Ошибок: не больше ${d.mistakesForStar}`, done: (s.mistakes || 0) <= d.mistakesForStar },
+        { text: `Уложился в смену: ${Math.round((shift) / 60)} мин`, done: durationSec <= (shift) },
+      ];
+      const stars = starRules.filter((r) => r.done).length;
       const timeBonus = Math.round((Math.max(0, shift - durationSec) / shift) * 300);
       const score = Math.max(0, 600 + verdictCount() * 60 + (flag('autotest_done') ? 150 : 0) - (s.mistakes || 0) * 75 + timeBonus);
       if (s.decisions.gl_ch3_timeline_first_try === undefined) decide('gl_ch3_timeline_first_try', false);
@@ -691,6 +695,7 @@ export function createChapter3(ctx) {
       if (stars === 3) unlock('gl_three_stars');
       const meta = ENDINGS3[ending];
       return {
+        starRules,
         chapterNo: 3,
         ending,
         endingTitle: meta.title,

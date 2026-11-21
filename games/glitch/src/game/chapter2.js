@@ -464,6 +464,7 @@ export function createChapter2(ctx) {
         if (disposed) return;
         ctx.cutscene = false;
         await screens.fadeIn();
+        pushChat('system', 'Глава 2. Комната, которой нет');
         later(300, () => talk(D2.wake));
         later(2500, () => chat('start'));
         later(6000, () => chat('timurNoRoom'));
@@ -481,9 +482,12 @@ export function createChapter2(ctx) {
       const ending = forceEnding || (rows === ROWS.length && (s.mistakes || 0) === 0 ? 'gl_ch2_thorough' : 'gl_ch2_standard');
       const durationSec = Math.round(s.playTime || 0);
       const shift = d.shiftSec2 || d.shiftSec;
-      let stars = 1;
-      if ((s.mistakes || 0) <= d.mistakesForStar) stars += 1;
-      if (durationSec <= shift && rows === ROWS.length) stars += 1;
+      const starRules = [
+        { text: 'Глава пройдена', done: true },
+        { text: d.mistakesForStar === 0 ? 'Ни одной ошибки в ответах' : `Ошибок в ответах: не больше ${d.mistakesForStar}`, done: (s.mistakes || 0) <= d.mistakesForStar },
+        { text: `Уложился в смену: ${Math.round((shift) / 60)} мин`, done: durationSec <= (shift) },
+      ];
+      const stars = starRules.filter((r) => r.done).length;
       const timeBonus = Math.round((Math.max(0, shift - durationSec) / shift) * 300);
       const score = Math.max(0, 500 + rows * 80 + (s.decisions.gl_ch2_bisect_first_try ? 150 : 0) - (s.mistakes || 0) * 75 + timeBonus);
       decide('gl_ch2_rows_found', rows);
@@ -493,6 +497,7 @@ export function createChapter2(ctx) {
       if (stars === 3) unlock('gl_three_stars');
       const meta = ENDINGS2[ending];
       return {
+        starRules,
         chapterNo: 2,
         ending,
         endingTitle: meta.title,
