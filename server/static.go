@@ -46,6 +46,12 @@ func staticHandler(dir string) http.Handler {
 		} else {
 			w.Header().Set("Cache-Control", "no-cache")
 		}
+		// http.FileServer answers ".../index.html" with a 301 to ".../". Games are loaded as
+		// /games/<id>/index.html, so ask for the folder instead and skip the extra round trip.
+		if path.Base(p) == "index.html" {
+			r = r.Clone(r.Context())
+			r.URL.Path = "/" + strings.TrimSuffix(p, "index.html")
+		}
 		files.ServeHTTP(w, r)
 	})
 }

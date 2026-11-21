@@ -47,3 +47,47 @@ Browser
 
 ### Load time
 - Site: about 107 KB JS gzipped + self-hosted fonts (no Google Fonts, no CDN). The game loads only when you press «Играть».
+
+## Server (`server/`)
+
+### Why Go?
+- **One small binary** (about 15 MB) that serves the site, the games and the API. Starts in milliseconds, uses about 20 MB of memory.
+- **Standard library only** for HTTP (`net/http` with Go 1.22 routing), `log/slog` for logs. The one dependency is the SQLite driver (`modernc.org/sqlite`, pure Go, no C compiler needed).
+- Strong typing and `go test -race` catch concurrency bugs before the demo.
+
+### Request flow
+
+```
+Browser ──► Go server :8080
+             ├─ security headers (nosniff, frame-ancestors 'self', no-referrer)
+             ├─ request log (method, path, status, ms; never nickname, token or IP)
+             ├─ /api/v1/* ─► rate limit per IP (60 reads, 20 writes / min)
+             │                ├─ Bearer token ─► SHA-256 ─► players.token_hash (constant-time compare)
+             │                ├─ validate input (nickname, gameId, stars, sizes)
+             │                └─ SQLite (WAL) ─► JSON
+             └─ everything else ─► web/dist: /assets cached 1 year, pages no-cache,
+                                    site routes → index.html, missing /games/* → 404
+```
+
+### What do we store about minors?
+- **A nickname only** (2–20 characters, bad-word filter), a random player id, and the SHA-256 hash of the token. No email, phone, age, real name. No IP address with player records or in logs.
+- If the database leaks, the tokens can't be used: only hashes are stored.
+- One table each: `players`, `saves`, `runs`. Deleting a player deletes their saves and runs (`ON DELETE CASCADE`).
+
+### How is cheating on the leaderboard limited?
+- Every value is checked: stars 0–3, score 0–1 000 000 (whole numbers), duration 30 s – 6 h, known games and difficulties only.
+- **One row per player** in the table: their best run, so one player can't fill it.
+- Rate limits stop scripts that create many players or send many runs.
+- Honest limit: the game runs in the player's browser, so a determined player can still send a fake but plausible result. For a school leaderboard that is acceptable; the next step would be signed results checked against the save.
+
+### What if the server is down?
+- The site works fully without it: saves stay in the browser, the status says «Сохранено на этом устройстве», finished runs are sent later. Tested in Playwright with the API aborted and returning 503.
+
+### How does it scale?
+- Today: one container, SQLite in WAL mode. Thousands of players a day is fine for this.
+- Next: the store is one file (`store.go`) behind plain methods, so moving to PostgreSQL is a change in one place. The static site can move to a CDN. With several server instances, the rate limiter moves to Redis or the load balancer.
+
+### How is it tested?
+- `go test -race`: table tests with `httptest` for every endpoint: success, bad input, missing or wrong token, too-large body (413), rate limit (429), one-best-run leaderboard, stats, static files (cache headers, SPA fallback, no directory listing, no path traversal), migrations run twice safely. About 77 % statement coverage.
+- `go vet` and `gofmt` in CI (GitHub Actions) on every pull request, next to the site's unit and Playwright tests.
+- A real end-to-end smoke test: the Docker image, the real site, the mock game, the real API: save → «Сохранено» → end → the player appears in the leaderboard.

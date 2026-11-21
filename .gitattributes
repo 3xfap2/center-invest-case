@@ -1,0 +1,5 @@
+# Linux tools (Docker, gofmt, make) need LF line endings, even on Windows checkouts
+*.go text eol=lf
+Dockerfile text eol=lf
+Makefile text eol=lf
+*.sh text eol=lf

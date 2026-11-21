@@ -321,6 +321,7 @@ func TestStatic(t *testing.T) {
 		{"/results/mock", "SITE", "no-cache", 200},
 		{"/assets/app-abc123.js", "JS", "immutable", 200},
 		{"/games/glitch/", "GAME", "no-cache", 200},
+		{"/games/glitch/index.html", "GAME", "no-cache", 200}, // no 301 to the folder
 		{"/games/glitch/assets/x-1.js", "GJS", "immutable", 200},
 		{"/games/nope/index.html", "", "", 404}, // a missing game is a real 404, not the site
 		{"/games/nope", "", "", 404},
