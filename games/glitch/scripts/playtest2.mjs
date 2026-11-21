@@ -71,7 +71,10 @@ async function interact(id, answers) {
 }
 async function idle() {
   await page.waitForFunction(() => window.__glitch.ctx.world && !window.__glitch.ctx.cutscene && !window.__glitch.blockers.has('menu'), null, { timeout: 20000 });
-  await wait(300);
+  await wait(400);
+  await dialog();
+  // стартовые реплики появляются с задержкой после затемнения: дождаться и закрыть
+  await wait(1200);
   await dialog();
 }
 async function switchTo(b) {

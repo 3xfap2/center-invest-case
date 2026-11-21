@@ -183,6 +183,23 @@ button {
 }
 
 /* ---------- Диалоги ---------- */
+.dlg-x {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-size: 24px;
+  line-height: 1;
+}
+.dlg-x:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
 .dialogue {
   position: absolute;
   left: 50%;
@@ -1228,6 +1245,12 @@ button {
   bottom: calc(max(40px, env(safe-area-inset-bottom)) + 150px);
   border-color: #7cc4ff;
   color: #7cc4ff;
+}
+.tbtn-console {
+  left: max(20px, env(safe-area-inset-left));
+  bottom: calc(max(40px, env(safe-area-inset-bottom)) + 150px);
+  border-color: #63e6a8;
+  color: #63e6a8;
 }
 .tbtn-compare {
   left: max(20px, env(safe-area-inset-left));

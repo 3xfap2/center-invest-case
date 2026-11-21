@@ -53,14 +53,16 @@ export function createChapter2(ctx) {
   };
 
   async function talk(nodes) {
-    if (busy) return;
+    if (busy) return false;
     busy = true;
+    let ok = false;
     try {
-      await dialogue.play(nodes);
+      ok = await dialogue.play(nodes);
     } finally {
       busy = false;
     }
     refreshObjective();
+    return ok;
   }
 
   // Выбор варианта в диалоге: возвращает индекс выбранного ответа.
@@ -209,8 +211,7 @@ export function createChapter2(ctx) {
       note_wall: {
         label: 'Прочитать записки',
         onUse: async () => {
-          setFlag('read_board');
-          await talk(D2.noteWall);
+          if (await talk(D2.noteWall)) setFlag('read_board');
         },
       },
       switcher: {
@@ -238,7 +239,7 @@ export function createChapter2(ctx) {
         label: 'Прочитать надпись',
         enabled: () => build() === '0.9.3' && flag('call_done'),
         onUse: async () => {
-          await talk(D2.hiddenNote);
+          if (!(await talk(D2.hiddenNote))) return; // вышел: записку можно перечитать
           setFlag('note_read');
           decide('gl_ch2_read_at08', true);
           finish();
@@ -255,12 +256,12 @@ export function createChapter2(ctx) {
         onUse: async () => {
           observe('lis');
           if (build() === '0.9.3') {
-            if (!flag('met_stranger')) {
+            if ((await talk(D2.lis093)) && !flag('met_stranger')) {
               setFlag('met_stranger');
               decide('gl_ch2_met_stranger', true);
               unlock('gl_stranger');
             }
-            return talk(D2.lis093);
+            return;
           }
           return talk(build() === '0.9.5' ? D2.lis095 : D2.lis097);
         },
@@ -302,35 +303,37 @@ export function createChapter2(ctx) {
   }
 
   // ---------- Вывод: звонок Ирины и Тимура ----------
+  // Звонок засчитывается только целиком: если игрок вышел, в следующий раз он начнётся заново.
   async function runCall() {
-    await talk(D2.callIntro);
-    let firstTry = true;
+    if (!(await talk(D2.callIntro))) return;
+    const c = C2();
     for (;;) {
       const i = await ask('irina', D2.quiz1, ['0.9.3', '0.9.5', '0.9.7']);
       if (i === 1) break;
       if (i < 0) return;
-      firstTry = false;
+      c.q1miss = true;
       S().mistakes = (S().mistakes || 0) + 1;
       sfx.fail();
-      await talk([{ who: 'irina', text: D2.quiz1Wrong[i === 0 ? '0.9.3' : '0.9.7'] }]);
+      save();
+      if (!(await talk([{ who: 'irina', text: D2.quiz1Wrong[i === 0 ? '0.9.3' : '0.9.7'] }]))) return;
     }
-    decide('gl_ch2_bisect_first_try', firstTry);
-    if (firstTry) unlock('gl_bisect');
+    decide('gl_ch2_bisect_first_try', !c.q1miss);
+    if (!c.q1miss) unlock('gl_bisect');
     sfx.success();
-    await talk(D2.quiz1Right);
-    let first2 = true;
+    if (!(await talk(D2.quiz1Right))) return;
     for (;;) {
       const i = await ask('irina', D2.quiz2, ['Часы', 'Скамейка', 'Журнал']);
       if (i === 0) break;
       if (i < 0) return;
-      first2 = false;
+      c.q2miss = true;
       S().mistakes = (S().mistakes || 0) + 1;
       sfx.fail();
-      await talk([{ who: 'irina', text: D2.quiz2Wrong }]);
+      save();
+      if (!(await talk([{ who: 'irina', text: D2.quiz2Wrong }]))) return;
     }
-    if (first2) unlock('gl_feature_check');
-    await talk(D2.quiz2Right);
-    await talk(D2.callEnd);
+    if (!c.q2miss) unlock('gl_feature_check');
+    if (!(await talk(D2.quiz2Right))) return;
+    if (!(await talk(D2.callEnd))) return;
     setFlag('call_done');
     save();
     refreshObjective();
@@ -498,7 +501,7 @@ export function createChapter2(ctx) {
         score,
         durationSec,
         choices: Object.entries(s.decisions).map(([key, value]) => ({ key, value })),
-        teaser: 'Глава 3. След предыдущего тестировщика. Скоро.',
+        teaser: 'Дальше: глава 3. След предыдущего тестировщика.',
         skillsUsed: [
           { text: 'Сравнил три версии одной локации (регрессионное тестирование)', done: rows >= d.rowsNeeded },
           { text: 'Нашёл сборку, где появилась причина ошибки', done: flag('call_done') },

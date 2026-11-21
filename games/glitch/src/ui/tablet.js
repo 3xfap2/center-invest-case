@@ -37,6 +37,7 @@ const PEOPLE = {
   irina: { name: 'Ирина Белова', role: 'руководитель тестирования', letter: 'И', cls: 'irina' },
   timur: { name: 'Тимур Сафин', role: 'программист', letter: 'Т', cls: 'timur' },
   system: { name: 'Система', role: '', letter: 'С', cls: 'system' },
+  nikita: { name: 'Никита Орлов', role: 'бывший тестировщик', letter: 'Н', cls: 'nikita' },
 };
 
 const FIELD_ERR = {

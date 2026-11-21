@@ -67,6 +67,11 @@ export function initInput(canvasEl) {
       bus.emit('input:compare');
       return;
     }
+    if (e.code === 'Backquote') {
+      e.preventDefault();
+      bus.emit('input:console');
+      return;
+    }
     if (!input.enabled) return;
     if (e.code === 'KeyQ') {
       bus.emit('input:switch');
@@ -112,7 +117,8 @@ function initTouch() {
     <button class="tbtn tbtn-pause" data-pause aria-label="Пауза">II</button>
     <button class="tbtn tbtn-fs hidden" data-fs aria-label="На весь экран">⛶</button>
     <button class="tbtn tbtn-switch hidden" data-switch>Сборка</button>
-    <button class="tbtn tbtn-compare hidden" data-compare>Таблица</button>`;
+    <button class="tbtn tbtn-compare hidden" data-compare>Таблица</button>
+    <button class="tbtn tbtn-console hidden" data-console>Консоль</button>`;
   root.appendChild(pad);
 
   const joy = pad.querySelector('[data-joy]');
@@ -141,6 +147,13 @@ function initTouch() {
   bus.on('touch:ch2', (v) => {
     btnSwitch.classList.toggle('hidden', !v);
     btnCompare.classList.toggle('hidden', !v);
+  });
+  const btnConsole = pad.querySelector('[data-console]');
+  bus.on('touch:ch3', (v) => btnConsole.classList.toggle('hidden', !v));
+  btnConsole.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    bus.emit('input:console');
   });
   btnSwitch.addEventListener('touchstart', (e) => {
     e.preventDefault();
