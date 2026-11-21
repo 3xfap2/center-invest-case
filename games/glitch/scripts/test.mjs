@@ -86,10 +86,10 @@ await server.listen();
 const DEV = 'http://127.0.0.1:5179/';
 
 // Дочерний процесс запускаем асинхронно: сервер Vite живёт в этом же процессе и должен отвечать.
-function playtest(url, args, tag) {
+function playtest(url, args, tag, script = 'playtest.mjs') {
   console.log(`\n== Автопрохождение: ${tag}`);
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [rel('scripts/playtest.mjs'), ...args], {
+    const child = spawn(process.execPath, [rel(`scripts/${script}`), ...args], {
       env: { ...process.env, URL: url, SHOTS: path.join(SHOTS, tag) },
     });
     let out = '';
@@ -110,6 +110,8 @@ function playtest(url, args, tag) {
 
 await playtest(DEV, [], 'pc');
 await playtest(DEV, ['--mobile'], 'phone');
+await playtest(DEV, [], 'ch2-pc', 'playtest2.mjs');
+await playtest(DEV, ['--mobile'], 'ch2-phone', 'playtest2.mjs');
 
 // ---------- 3. Меню отладки и сайт в iframe ----------
 console.log('\n== Сайт в iframe и меню отладки');
@@ -154,7 +156,8 @@ try {
     await frame.click(`[data-p="${p}"]`);
     await frame.waitForFunction(() => window.__glitch.ctx.world && !window.__glitch.ctx.cutscene && !window.__glitch.blockers.has('menu'), null, { timeout: 15000 });
     const sc = await frame.evaluate(() => window.__glitch.ctx.sceneName);
-    if (sc !== (p === 'office' ? 'office' : 'station')) presetsOk = false;
+    const want = p === 'office' ? 'office' : ['ch2_start', 'ch2_switcher', 'ch2_call'].includes(p) ? 'diagnostic' : 'station';
+    if (sc !== want) presetsOk = false;
   }
   check(`меню отладки: переход к ${presets.length} точкам главы`, presetsOk && presets.length >= 8);
 
@@ -163,7 +166,7 @@ try {
   for (const e of endings) {
     await page.keyboard.press('F2');
     await frame.click(`[data-e="${e}"]`);
-    await frame.waitForSelector('text=Глава 1 завершена');
+    await frame.waitForSelector('text=/Глава [0-9] завершена/');
     // postMessage доходит до сайта асинхронно: ждём именно это сообщение end.
     await page.waitForFunction((id) => window.messages.some((m) => m.type === 'end' && m.ending === id), e, { timeout: 5000 }).catch(() => {});
     const last = await page.evaluate(() => [...window.messages].reverse().find((m) => m.type === 'end'));

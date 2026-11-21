@@ -3,7 +3,7 @@ import { bus } from './core/events.js';
 import { initInput, input, isTouch } from './core/input.js';
 import { Player } from './core/player.js';
 import { Interactor } from './core/interact.js';
-import { game, newGame, restoreGame, loadLocalSave, clearLocalSave, save, unlock, diff } from './core/state.js';
+import { game, newGame, restoreGame, loadLocalSave, clearLocalSave, save, unlock, diff, beginChapter2 } from './core/state.js';
 import { platform } from './core/platform.js';
 import { unlockAudio, setAmbience, setMuted, isMuted, suspendAudio } from './core/audio.js';
 import { createHud } from './ui/hud.js';
@@ -13,6 +13,10 @@ import { createTablet } from './ui/tablet.js';
 import { createOffice } from './world/office.js';
 import { createStation } from './world/station.js';
 import { createChapter1, DEBUG_PRESETS, applyPreset } from './game/chapter1.js';
+import { createChapter2, DEBUG_PRESETS2, applyPreset2 } from './game/chapter2.js';
+import { createDiagnostic } from './world/diagnostic.js';
+import { createCompare } from './ui/compare.js';
+import { ENDINGS2 } from './content/chapter2.js';
 import { ENDINGS } from './content/meta.js';
 import { createIntro } from './world/intro.js';
 import { playIntro } from './game/introCutscene.js';
@@ -47,6 +51,7 @@ const interactor = new Interactor(camera);
 const hud = createHud(uiRoot);
 const dialogue = createDialogue(uiRoot);
 const screens = createScreens(uiRoot);
+const compare = createCompare(uiRoot);
 hud.show(false);
 
 // Блокировки управления: меню, диалог, планшет, катсцена, пауза, пауза от сайта.
@@ -70,6 +75,8 @@ bus.on('dialogue:open', () => block('dialogue', true));
 bus.on('dialogue:close', () => block('dialogue', false));
 bus.on('tablet:open', () => block('tablet', true));
 bus.on('tablet:close', () => block('tablet', false));
+bus.on('compare:open', () => block('compare', true));
+bus.on('compare:close', () => block('compare', false));
 
 // ---------- Мир ----------
 const worlds = {};
@@ -93,8 +100,10 @@ function disposeWorld(w) {
 function buildWorlds() {
   disposeWorld(worlds.office);
   disposeWorld(worlds.station);
+  disposeWorld(worlds.diagnostic);
   worlds.office = createOffice();
   worlds.station = createStation();
+  worlds.diagnostic = createDiagnostic();
 }
 
 function loadScene(name) {
@@ -104,7 +113,7 @@ function loadScene(name) {
   player.colliders = world.colliders;
   interactor.setSlots(world.slots);
   game.state.scene = name;
-  setAmbience(name);
+  setAmbience(name === 'diagnostic' ? 'office' : name);
   return world;
 }
 
@@ -118,6 +127,7 @@ const tabletCallbacks = Object.fromEntries(CALLBACKS.map((k) => [k, (...a) => ch
 
 const ctx = {
   camera,
+  compare,
   player,
   interactor,
   hud,
@@ -149,7 +159,7 @@ function applyInit(data) {
   setMuted(!!data?.muted);
   let s = data?.save || null;
   if (!s && platform.standalone) s = loadLocalSave();
-  session.save = s && s.v === 1 && s.chapter === 1 && !s.flags?.chapter_done ? s : null;
+  session.save = s && s.v === 1 && [1, 2].includes(s.chapter) && (!s.flags?.chapter_done || s.chapter === 1) ? s : null;
 }
 
 platform.onCommand({
@@ -252,6 +262,7 @@ async function showStart() {
     const a = await load.askStart({ canContinue: !!session.save, name: session.nickname });
     if (a === 'continue') {
       restoreGame(session.save, session.nickname, session.difficulty);
+      if (game.state.chapter === 1 && game.state.flags.chapter_done) beginChapter2(); // глава 1 пройдена: продолжаем главой 2
     } else {
       clearLocalSave();
       newGame(session.nickname, session.difficulty);
@@ -275,7 +286,7 @@ async function startChapter(rebuild = false) {
   unlockAudio();
   if (rebuild) buildWorlds();
   ctx.cutscene = false; // прошлая глава могла закрыться посреди катсцены (вступление, меню отладки)
-  chapter = createChapter1(ctx);
+  chapter = game.state.chapter === 2 ? createChapter2(ctx) : createChapter1(ctx);
   if (!tablet) tablet = createTablet(uiRoot, tabletCallbacks);
   tablet.refresh?.();
   hud.show(true);
@@ -303,26 +314,60 @@ async function endChapter(forceEnding) {
   hud.show(false);
   hud.setTimer(null);
   const r = chapter.result(forceEnding);
-  unlock('gl_chapter1');
-  if ((game.state.hintsUsed || 0) === 0) unlock('gl_no_hints');
+  const no = game.state.chapter;
+  if (no === 2) unlock('gl_chapter2');
+  else unlock('gl_chapter1');
+  if (no === 1 && (game.state.hintsUsed || 0) === 0) unlock('gl_no_hints');
   game.state.flags.chapter_done = true;
   game.state.ending = r.ending;
   save(false);
   platform.saveNow(game.state);
   platform.end({ ending: r.ending, stars: r.stars, score: r.score, durationSec: r.durationSec, choices: r.choices });
-  const a = await screens.chapterEnd({ ...r, career });
+  const a = await screens.chapterEnd({ ...r, career, hasNext: no === 1 });
   screens.close();
   session.save = null;
-  if (a === 'restart') {
+  if (a === 'next') {
+    // Сайт запускает игру один раз, переходы между главами внутри игры.
     stopChapter();
-    clearLocalSave();
-    newGame(session.nickname, session.difficulty);
+    beginChapter2();
+    platform.saveNow(game.state);
+    await startChapter(true);
+  } else if (a === 'restart') {
+    stopChapter();
+    if (no === 2) restartChapter2();
+    else {
+      clearLocalSave();
+      newGame(session.nickname, session.difficulty);
+    }
     await startChapter(true);
   } else {
+    // После главы 1 «Продолжить» ведёт в главу 2.
+    if (no === 1) {
+      beginChapter2();
+      platform.saveNow(game.state);
+      session.save = JSON.parse(JSON.stringify(game.state));
+    }
     platform.exit();
+    stopChapter();
     buildWorlds();
     showStart();
   }
+}
+
+// Пройти главу 2 заново: история главы 1 остаётся, события главы 2 сбрасываются.
+function restartChapter2() {
+  for (const k of Object.keys(game.state.decisions || {})) if (k.startsWith('gl_ch2_')) delete game.state.decisions[k];
+  Object.assign(game.state, {
+    flags: {},
+    scene: 'diagnostic',
+    pos: null,
+    playTime: 0,
+    mistakes: 0,
+    hintsUsed: 0,
+    ending: null,
+    ch2: { build: '0.9.7', obs: {}, hasSwitcher: false },
+  });
+  save();
 }
 
 // ---------- Цикл ----------
@@ -376,6 +421,9 @@ async function boot() {
   worlds.station = createStation();
   load.setProgress(0.75, 'Строим станцию…');
   await nextFrame();
+  worlds.diagnostic = createDiagnostic();
+  load.setProgress(0.85, 'Строим комнату, которой нет…');
+  await nextFrame();
   // Заранее компилируем шейдеры, чтобы не было рывка при входе в сцену.
   for (const w of Object.values(worlds)) {
     w.scene.add(camera);
@@ -401,7 +449,12 @@ function debugNewState(preset) {
   buildWorlds();
   clearLocalSave();
   newGame(session.nickname, session.difficulty);
-  applyPreset(game.state, preset);
+  if (preset.startsWith('ch2')) {
+    applyPreset(game.state, 'door'); // глава 1 пройдена
+    game.state.flags.chapter_done = true;
+    beginChapter2();
+    applyPreset2(game.state, preset);
+  } else applyPreset(game.state, preset);
 }
 
 function mountDebug() {
@@ -409,9 +462,9 @@ function mountDebug() {
   el.className = 'debug-menu';
   el.innerHTML = `<button data-t>DEBUG (F2)</button><div class="debug-panel hidden">
     <b>Перейти к сцене</b>
-    ${DEBUG_PRESETS.map(([id, label]) => `<button data-p="${id}">${label}</button>`).join('')}
+    ${[...DEBUG_PRESETS, ...DEBUG_PRESETS2].map(([id, label]) => `<button data-p="${id}">${label}</button>`).join('')}
     <b>Получить концовку</b>
-    ${Object.entries(ENDINGS)
+    ${Object.entries({ ...ENDINGS, ...ENDINGS2 })
       .map(([id, e]) => `<button data-e="${id}">${e.title} (${id})</button>`)
       .join('')}
     <b>Сложность</b>
@@ -450,7 +503,7 @@ function mountDebug() {
       return;
     }
     if (b.dataset.e) {
-      debugNewState('door');
+      debugNewState(ENDINGS2[b.dataset.e] ? 'ch2_call' : 'door');
       await startChapter();
       if (b.dataset.e === 'gl_ch1_thorough') game.state.evidence.chalk_note = true;
       endChapter(b.dataset.e);

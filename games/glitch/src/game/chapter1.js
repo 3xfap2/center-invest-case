@@ -965,6 +965,8 @@ export function createChapter1(ctx) {
       if (stars === 3) unlock('gl_three_stars');
       const meta = ENDINGS[ending];
       return {
+        chapterNo: 1,
+        teaser: 'Дальше: глава 2. Комната, которой нет.',
         ending,
         endingTitle: meta.title,
         characters: meta.heroes(s.decisions),

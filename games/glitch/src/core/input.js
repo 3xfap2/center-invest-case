@@ -63,7 +63,15 @@ export function initInput(canvasEl) {
       bus.emit('input:pause');
       return;
     }
+    if (e.code === 'KeyC') {
+      bus.emit('input:compare');
+      return;
+    }
     if (!input.enabled) return;
+    if (e.code === 'KeyQ') {
+      bus.emit('input:switch');
+      return;
+    }
     if (e.code === 'KeyE' || e.code === 'Enter') {
       bus.emit('input:interact');
       return;
@@ -102,7 +110,9 @@ function initTouch() {
     <button class="tbtn-palm" data-act aria-label="Действие"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.6" y="4.2" width="2.6" height="10" rx="1.3"/><rect x="9.7" y="2.6" width="2.6" height="11" rx="1.3"/><rect x="12.8" y="3.1" width="2.6" height="11" rx="1.3"/><rect x="15.9" y="5.2" width="2.6" height="9" rx="1.3"/><rect x="6.6" y="10.2" width="11.9" height="10.6" rx="4.2"/><rect x="3.9" y="10.4" width="2.6" height="7.4" rx="1.3" transform="rotate(-32 5.2 14.1)"/></svg></button>
     <button class="tbtn tbtn-tab" data-tab>Планшет</button>
     <button class="tbtn tbtn-pause" data-pause aria-label="Пауза">II</button>
-    <button class="tbtn tbtn-fs hidden" data-fs aria-label="На весь экран">⛶</button>`;
+    <button class="tbtn tbtn-fs hidden" data-fs aria-label="На весь экран">⛶</button>
+    <button class="tbtn tbtn-switch hidden" data-switch>Сборка</button>
+    <button class="tbtn tbtn-compare hidden" data-compare>Таблица</button>`;
   root.appendChild(pad);
 
   const joy = pad.querySelector('[data-joy]');
@@ -124,6 +134,23 @@ function initTouch() {
     e.preventDefault();
     e.stopPropagation();
     enterFullscreen().then(syncFs);
+  });
+  // Глава 2: переключатель сборок и таблица сравнения (кнопки появляются, когда прибор у игрока).
+  const btnSwitch = pad.querySelector('[data-switch]');
+  const btnCompare = pad.querySelector('[data-compare]');
+  bus.on('touch:ch2', (v) => {
+    btnSwitch.classList.toggle('hidden', !v);
+    btnCompare.classList.toggle('hidden', !v);
+  });
+  btnSwitch.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (input.enabled) bus.emit('input:switch');
+  });
+  btnCompare.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    bus.emit('input:compare');
   });
   pad.querySelector('[data-pause]').addEventListener('touchstart', (e) => {
     e.preventDefault();

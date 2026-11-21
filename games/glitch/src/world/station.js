@@ -582,24 +582,68 @@ export function createStation() {
   const serviceDoor = new THREE.Group();
   serviceDoor.position.set(8.97, 0, 2.97);
   serviceDoor.add(box(0.05, 2.2, 1.06, PAL.serviceDoor, 0, 0, 0.53));
+  // 0.9.5 и 0.9.7: дверь нарисована плоской краской
+  const paintedDoor = new THREE.Group();
   {
     const paint = shade(PAL.serviceDoor, 0.7);
     const x = -0.028;
-    serviceDoor.add(box(0.006, 0.05, 0.9, paint, x, 1.95, 0.53));
-    serviceDoor.add(box(0.006, 0.05, 0.9, paint, x, 0.12, 0.53));
-    serviceDoor.add(box(0.006, 1.88, 0.05, paint, x, 0.12, 0.1));
-    serviceDoor.add(box(0.006, 1.88, 0.05, paint, x, 0.12, 0.96));
-    serviceDoor.add(box(0.006, 0.42, 0.5, 0x8fa4b8, x, 1.35, 0.53)); // нарисованное окошко
-    serviceDoor.add(box(0.006, 0.05, 0.16, 0x2b3138, x, 1.0, 0.86)); // нарисованная ручка
-    for (const y of [0.35, 1.8]) serviceDoor.add(box(0.006, 0.12, 0.03, 0x2b3138, x, y, 0.03));
+    paintedDoor.add(box(0.006, 0.05, 0.9, paint, x, 1.95, 0.53));
+    paintedDoor.add(box(0.006, 0.05, 0.9, paint, x, 0.12, 0.53));
+    paintedDoor.add(box(0.006, 1.88, 0.05, paint, x, 0.12, 0.1));
+    paintedDoor.add(box(0.006, 1.88, 0.05, paint, x, 0.12, 0.96));
+    paintedDoor.add(box(0.006, 0.42, 0.5, 0x8fa4b8, x, 1.35, 0.53)); // нарисованное окошко
+    paintedDoor.add(box(0.006, 0.05, 0.16, 0x2b3138, x, 1.0, 0.86)); // нарисованная ручка
+    for (const y of [0.35, 1.8]) paintedDoor.add(box(0.006, 0.12, 0.03, 0x2b3138, x, y, 0.03));
   }
-  scene.add(serviceDoor);
+  serviceDoor.add(paintedDoor);
+  // 0.9.3: настоящая дверь «Диагностика»: филёнки, петли, ручка, тёплое окошко
+  const realDoor = new THREE.Group();
   {
-    const s = textPlane('Служебный выход', { width: 1.3, height: 0.24, bg: '#2b3138', fg: '#e8edf2', font: 'bold 120px sans-serif' });
-    s.position.set(8.985, 2.42, 3.5);
-    s.rotation.y = -Math.PI / 2;
-    add(s);
+    const panelC = shade(PAL.serviceDoor, 1.15);
+    const metal = 0xb8bcc2;
+    realDoor.add(box(0.02, 0.62, 0.84, panelC, -0.03, 0.18, 0.53));
+    realDoor.add(box(0.02, 0.05, 0.84, shade(PAL.serviceDoor, 0.8), -0.03, 0.95, 0.53));
+    realDoor.add(box(0.012, 0.5, 0.56, 0x3a3f46, -0.03, 1.12, 0.53)); // рамка окошка
+    realDoor.add(box(0.014, 0.42, 0.48, 0, -0.031, 1.16, 0.53, mat(0xffe2b8, { emissive: 0xffc888, emissiveIntensity: 0.75 })));
+    realDoor.add(box(0.008, 0.16, 0.96, 0x8a9098, -0.03, 0.02, 0.53)); // отбойная пластина
+    realDoor.add(box(0.012, 0.2, 0.07, metal, -0.032, 0.9, 0.92)); // накладка
+    realDoor.add(box(0.05, 0.035, 0.035, metal, -0.06, 1.0, 0.92)); // ручка-нажим
+    realDoor.add(box(0.03, 0.03, 0.15, metal, -0.09, 1.0, 0.86));
+    realDoor.add(box(0.012, 0.03, 0.02, 0x1a1a1a, -0.034, 0.86, 0.92)); // скважина
+    for (const y of [0.3, 1.85]) realDoor.add(box(0.035, 0.14, 0.035, metal, -0.03, y, 0.015)); // петли
   }
+  serviceDoor.add(realDoor);
+  scene.add(serviceDoor);
+  // наличник и полоска света из-под двери (только 0.9.3, не двигаются с дверью)
+  const realFrame = new THREE.Group();
+  {
+    const casing = 0x3a3f46;
+    realFrame.add(box(0.06, 2.3, 0.1, casing, 8.95, 0, 2.92));
+    realFrame.add(box(0.06, 2.3, 0.1, casing, 8.95, 0, 4.08));
+    realFrame.add(box(0.06, 0.1, 1.26, casing, 8.95, 2.2, 3.5));
+    const gapMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, fog: false });
+    realFrame.add(box(0.03, 0.012, 1.0, 0, 8.93, 0.0, 3.5, gapMat)); // щель под дверью
+    realFrame.add(box(0.012, 2.05, 0.012, 0, 8.945, 0.05, 4.02, gapMat)); // щель у замка
+    // тёплое пятно на полу у щели, гаснет к залу
+    const warm = new THREE.Color(0xffc888);
+    const spill = glowMesh(
+      [8.98, 0.026, 3.0, 8.98, 0.026, 4.0, 8.25, 0.026, 2.85, 8.25, 0.026, 4.15],
+      [warm.r, warm.g, warm.b, warm.r, warm.g, warm.b, 0, 0, 0, 0, 0, 0],
+      [0, 1, 2, 1, 3, 2],
+    );
+    spill.material.opacity = 0.4;
+    spill.visible = true;
+    realFrame.add(spill);
+  }
+  scene.add(realFrame);
+  const serviceSign = textPlane('Служебный выход', { width: 1.3, height: 0.24, bg: '#2b3138', fg: '#e8edf2', font: 'bold 120px sans-serif' });
+  serviceSign.position.set(8.985, 2.42, 3.5);
+  serviceSign.rotation.y = -Math.PI / 2;
+  add(serviceSign);
+  const diagSign = textPlane('Диагностика', { width: 1.3, height: 0.24, bg: '#2b3138', fg: '#f2e6c8', font: 'bold 120px sans-serif' });
+  diagSign.position.set(8.92, 2.45, 3.5);
+  diagSign.rotation.y = -Math.PI / 2;
+  add(diagSign);
   // свет из щели: пятно на полу и «луч»
   const cold = new THREE.Color(0x9fd8ff);
   const floorGlow = glowMesh(
@@ -643,6 +687,8 @@ export function createStation() {
   const points = {
     terminalView: { x: 6.2, z: 3.5, yaw: Math.PI / 2 }, // лицом к экрану (−X), служебный выход в 2.8 м строго за спиной
     lisTalk: { x: -4.7, z: 3.0, yaw: Math.PI }, // лицом к Лису (+Z)
+    serviceReturn: { x: 7.8, z: 3.5, yaw: Math.PI / 2 }, // в 1.2 м от служебного выхода, спиной к нему, лицом в зал (−X)
+    serviceDoorFront: { x: 7.8, z: 3.5, yaw: -Math.PI / 2 }, // там же, лицом к двери (+X)
   };
   const cams = {
     counter: { pos: [-4.5, 1.8, 2.5], look: [-4.1, 1.05, 4.3] },
@@ -667,6 +713,8 @@ export function createStation() {
     lastPlayer: null,
     jitter: 0,
     jitterT: 0.4,
+    lastT: 0,
+    build: '0.9.7', // сборка мира: '0.9.3' | '0.9.5' | '0.9.7'
   };
   let handLantern = null;
 
@@ -738,6 +786,23 @@ export function createStation() {
     setChalkVisible(on) {
       st.chalkTarget = on ? 1 : 0;
     },
+    // Сборка мира. Меняет скамейку, часы и вид служебного выхода.
+    // Журнал, Лиса и открытость служебной двери не трогает: ими управляет сценарий.
+    setBuild(b) {
+      if (b !== '0.9.3' && b !== '0.9.5' && b !== '0.9.7') return;
+      st.build = b;
+      const real = b === '0.9.3';
+      paintedDoor.visible = !real;
+      realDoor.visible = realFrame.visible = real;
+      serviceSign.visible = !real;
+      diagSign.visible = real;
+      doorLight.color.setHex(real ? 0xffd8a8 : 0xa8dcff);
+      voidMat.color.setHex(real ? 0xffe8c8 : 0xd8f2ff);
+      update(0, st.lastT, null);
+    },
+    getBuild() {
+      return st.build;
+    },
     makeHandLantern() {
       if (handLantern) return handLantern;
       const glass = mat(0xffe2b0, { emissive: 0xffa848, emissiveIntensity: 1.1, opacity: 0.9 });
@@ -778,36 +843,45 @@ export function createStation() {
   function update(dt, t, playerPos) {
     dt = Math.min(dt || 0, 0.1);
     if (playerPos) st.lastPlayer = { x: playerPos.x, z: playerPos.z };
+    st.lastT = t || 0;
 
-    // часы идут назад: стрелки крутятся против часовой
+    // часы: в 0.9.5 и 0.9.7 идут назад (против часовой), в 0.9.3 вперёд
     const TAU = Math.PI * 2;
-    // для зрителя в зале (смотрит в +Z) рост rotation.z это ход по часовой, поэтому вычитаем
-    secHand.rotation.z = sBase - Math.floor(t) * (TAU / 60);
-    minHand.rotation.z = mBase - t * (TAU / 600);
-    hourHand.rotation.z = hBase - t * (TAU / 7200);
+    // для зрителя в зале (смотрит в +Z) рост rotation.z это ход по часовой
+    const dir = st.build === '0.9.3' ? 1 : -1;
+    secHand.rotation.z = sBase + dir * Math.floor(t) * (TAU / 60);
+    minHand.rotation.z = mBase + dir * t * (TAU / 600);
+    hourHand.rotation.z = hBase + dir * t * (TAU / 7200);
 
-    // баговая скамейка
-    st.jitterT -= dt;
-    if (st.jitterT <= 0) {
-      st.jitter = 0.08 + Math.random() * 0.1;
-      st.jitterT = 0.5 + Math.random() * 1.6;
-    }
-    const jit = st.jitter > 0;
-    if (jit) st.jitter -= dt;
-    bugPivot.position.set(
-      3.0 + (jit ? (Math.random() - 0.5) * 0.04 : 0),
-      1.0 + Math.sin(t * 1.6) * 0.06 + (jit ? (Math.random() - 0.5) * 0.03 : 0),
-      3.0 + (jit ? (Math.random() - 0.5) * 0.04 : 0),
-    );
-    bugPivot.rotation.set(Math.sin(t * 0.8) * 0.04, t * 0.35, Math.sin(t * 1.1) * 0.06);
-    ghosts.forEach((g, i) => {
-      g.visible = jit;
-      if (jit) {
-        g.position.copy(bugPivot.position);
-        g.position.x += i ? -0.05 : 0.05;
-        g.rotation.copy(bugPivot.rotation);
+    // скамейка: в 0.9.3 и 0.9.5 спокойно стоит на полу, лицом к платформе
+    if (st.build !== '0.9.7') {
+      bugPivot.position.set(3.0, 0.45, 3.0);
+      bugPivot.rotation.set(0, Math.PI, 0);
+      ghosts.forEach((g) => (g.visible = false));
+    } else {
+      // баговая скамейка (0.9.7): висит и вращается
+      st.jitterT -= dt;
+      if (st.jitterT <= 0) {
+        st.jitter = 0.08 + Math.random() * 0.1;
+        st.jitterT = 0.5 + Math.random() * 1.6;
       }
-    });
+      const jit = st.jitter > 0;
+      if (jit) st.jitter -= dt;
+      bugPivot.position.set(
+        3.0 + (jit ? (Math.random() - 0.5) * 0.04 : 0),
+        1.0 + Math.sin(t * 1.6) * 0.06 + (jit ? (Math.random() - 0.5) * 0.03 : 0),
+        3.0 + (jit ? (Math.random() - 0.5) * 0.04 : 0),
+      );
+      bugPivot.rotation.set(Math.sin(t * 0.8) * 0.04, t * 0.35, Math.sin(t * 1.1) * 0.06);
+      ghosts.forEach((g, i) => {
+        g.visible = jit;
+        if (jit) {
+          g.position.copy(bugPivot.position);
+          g.position.x += i ? -0.05 : 0.05;
+          g.rotation.copy(bugPivot.rotation);
+        }
+      });
+    }
 
     // лампы слегка мерцают, одна иногда «спотыкается»
     lampLights.forEach((l, i) => {
@@ -877,7 +951,7 @@ export function createStation() {
     chalk.visible = cm.opacity > 0.001;
   }
 
-  update(0, 0, null);
+  api.setBuild('0.9.7'); // по умолчанию: текущая сборка
 
   return {
     scene,
