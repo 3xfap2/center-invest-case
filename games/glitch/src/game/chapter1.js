@@ -116,6 +116,7 @@ export function createChapter1(ctx) {
 
   // ---------- Задачи и подсказки ----------
   const tabKey = () => (isTouch ? 'кнопка «Планшет»' : 'Tab');
+  const tablet = () => (isTouch ? '«Планшет»' : 'Планшет (Tab)');
   const actKey = () => (isTouch ? 'кнопку «Действие»' : 'E');
   const slotObj = (id) => ctx.world?.slots.find((x) => x.id === id)?.object || null;
 
@@ -127,23 +128,23 @@ export function createChapter1(ctx) {
       return { id: 'office_pc', text: 'Сядь за свой компьютер у окна и запусти сборку', target: slotObj('pc') };
     }
     if (flag('door_opened')) return { id: 'door', text: 'Обернись. Служебный выход открыт. Подойди к нему', target: o.serviceDoor };
-    if (flag('final_logged')) return { id: 'final', text: `Открой планшет (${tabKey()}): в журнале действий новая запись` };
+    if (flag('final_logged')) return { id: 'final', text: `Открой ${isTouch ? '«Планшет»' : 'планшет (Tab)'}: в журнале действий новая запись` };
     if (flag('evidence_saved')) return { id: 'wait', text: 'Постой у терминала. Смена почти закончилась', target: o.terminal };
     if (flag('compared')) return { id: 'save', text: 'Подойди к терминалу дежурного и сохрани доказательства', target: o.terminal };
     if (flag('dup_found'))
-      return { id: 'compare', text: `Планшет (${tabKey()}), вкладка «Трекер»: открой отчёт #0412 и нажми «Сравнить с моим»` };
+      return { id: 'compare', text: `${tablet()}, вкладка «Трекер»: открой отчёт #0412 и нажми «Сравнить с моим»` };
     if (flag('journal_reported')) return { id: 'compare', text: 'Отчёт принят. Трекер ищет похожие отчёты…' };
     if (flag('replay_ok'))
       return {
         id: 'report',
-        text: `Планшет (${tabKey()}), «Трекер», «Новый отчёт»: выбери «Журнал путешественников», нажми «Подставить шаги из повтора», заполни поля и отправь`,
+        text: `${tablet()}, «Трекер», «Новый отчёт»: выбери «Журнал путешественников», нажми «Подставить шаги из повтора», заполни поля и отправь`,
       };
     if (flag('journal_gone'))
       return {
         id: 'replay',
         text: diff().strict
           ? 'Журнал исчез. Найди в журнале действий, что к этому привело, и воспроизведи ошибку'
-          : `Журнал исчез. Планшет (${tabKey()}), вкладка «Журнал»: отметь «Взял фонарь», «Вошёл в архив», «Вышел из архива» и нажми «Воспроизвести выбранное»`,
+          : `Журнал исчез. ${tablet()}, вкладка «Журнал»: отметь «Взял фонарь», «Вошёл в архив», «Вышел из архива» и нажми «Воспроизвести выбранное»`,
       };
     if (!flag('met_lis')) return { id: 'lis', text: 'Подойди к будке смотрителя и поговори с Лисом', target: o.lis };
     if (!flag('lantern_held')) return { id: 'lantern', text: 'Возьми фонарь с крюка у будки', target: o.lantern };
@@ -211,7 +212,7 @@ export function createChapter1(ctx) {
         panel.insertBefore(el, panel.querySelector('.tb-body'));
       }
       // Планшет уже открыт: убираем «Планшет (Tab), » из начала.
-      let inner = text.replace(/Планшет \([^)]*\),\s*/, '');
+      let inner = text.replace(/(Планшет \([^)]*\)|«Планшет»),\s*/, '');
       inner = inner.charAt(0).toUpperCase() + inner.slice(1);
       if (el.textContent !== `Задача: ${inner}`) el.textContent = `Задача: ${inner}`;
     }
