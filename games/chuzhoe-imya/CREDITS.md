@@ -14,7 +14,7 @@
 | `src/world/sound.ts` | Codex для команды проекта, оригинальный синтез | Код проекта | Да |
 | `src/world/styles.css`, `src/world/fps.css`, `src/world/Panels.tsx`, `src/world/PhysicalTools.tsx`, `src/main.tsx`, `index.html` | Codex для команды проекта, интерфейс | Код проекта | Да |
 | `src/case/index.ts`, `content/case.json`, `content/dialogue/chapter.json`, `content/career.json`, `game.json` | Codex для команды проекта, на основе GDD команды и указанных источников | Код проекта | Да |
-| `tests/`, `scripts/`, конфигурация, README и игровая документация | Codex для команды проекта | Код проекта | Да |
+| `tests/`, конфигурация, README и игровая документация | Codex для команды проекта | Код проекта | Да |
 | `docs/GDD.md` | Команда проекта, `docs/GDD-chuzhoe-imya.md` | Документ проекта | Не указано |
 | Встроенный `ns-bridge.js` | Команда проекта, `games/shared/ns-bridge.js` | Код проекта | Не указано |
 | Пиктограммы интерфейса | [Lucide](https://lucide.dev/license) и Feather Icons | ISC / MIT | Нет |

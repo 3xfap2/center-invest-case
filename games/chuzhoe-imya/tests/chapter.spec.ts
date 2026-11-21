@@ -1,4 +1,8 @@
 import { expect, test } from '@playwright/test'
+import { fileURLToPath } from 'node:url'
+
+const origin = 'http://chuzhoe-imya.test'
+const file = new URL('../../../web/public/games/chuzhoe-imya/index.html', import.meta.url)
 
 test('first-person chapter, UTF-8 bridge, checkpoint restore and every ending', async ({ page }) => {
   const messages: { type: string; [key: string]: unknown }[] = []
@@ -6,7 +10,10 @@ test('first-person chapter, UTF-8 bridge, checkpoint restore and every ending', 
   page.on('pageerror', error => errors.push(error.message))
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
   await page.exposeFunction('recordGameMessage', (data: typeof messages[number]) => messages.push(data))
-  await page.route('**/platform-test', route => route.fulfill({
+  await page.route(origin + '/index.html?debug=1', route => route.fulfill({
+    path: fileURLToPath(file), contentType: 'text/html; charset=utf-8',
+  }))
+  await page.route(origin + '/platform-test', route => route.fulfill({
     contentType: 'text/html; charset=utf-8',
     body: '<!doctype html><html lang="ru"><meta charset="utf-8"><style>body{margin:0}iframe{display:block;width:100vw;height:100vh;border:0}</style><script>' +
       'window.addEventListener("message", event => {' +
@@ -15,7 +22,7 @@ test('first-person chapter, UTF-8 bridge, checkpoint restore and every ending', 
       'if (event.data.type === "ready") event.source.postMessage({ ns: 1, type: "init", playerId: "demo", nickname: "Пилот", difficulty: "normal", save: null, flags: {}, muted: true }, location.origin);' +
       '});</script><iframe title="Игра" src="/index.html?debug=1"></iframe></html>',
   }))
-  await page.goto('/platform-test')
+  await page.goto(origin + '/platform-test')
   const game = page.frameLocator('iframe')
   const dialog = (name: string) => game.getByRole('dialog', { name, exact: true })
   const button = (name: string) => game.getByRole('button', { name, exact: true })
@@ -146,7 +153,6 @@ test('first-person chapter, UTF-8 bridge, checkpoint restore and every ending', 
   })
   await expect(dialog('Пауза')).toHaveCount(0)
 
-  const file = new URL('../../../web/public/games/chuzhoe-imya/index.html', import.meta.url)
   await page.goto(file.href)
   await expect(page.getByRole('button', { name: 'Нажми, чтобы начать смену' })).toBeEnabled()
   await page.setViewportSize({ width: 1280, height: 720 })
