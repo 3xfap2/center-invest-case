@@ -49,7 +49,7 @@ export function Play({ game }: { game: Game }) {
         )}
       </header>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1" data-host-state={state} data-testid="game-host">
         <iframe
           ref={frame}
           src={`/games/${game.id}/${game.entry}`}
