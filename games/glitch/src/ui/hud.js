@@ -18,6 +18,7 @@ export function createHud(root) {
     </div>
     <div class="toasts"></div>
     <div class="keys-hint ${isTouch ? 'hidden' : ''}"><b>WASD</b> ходить · <b>E</b> действие · <b>Tab</b> планшет · <b>Esc</b> пауза</div>
+    <div class="build-badge hidden"></div>
     <div class="glitch-fx"></div>`;
   root.appendChild(el);
 
@@ -28,6 +29,7 @@ export function createHud(root) {
   const toasts = el.querySelector('.toasts');
   const gfx = el.querySelector('.glitch-fx');
   const timer = el.querySelector('.shift-timer');
+  const buildBadge = el.querySelector('.build-badge');
 
   bus.on('prompt', (label) => {
     cross.classList.toggle('on', !!label);
@@ -41,6 +43,14 @@ export function createHud(root) {
     el,
     show(v) {
       el.classList.toggle('hidden', !v);
+    },
+    // Текущая сборка мира (глава 2). null скрывает плашку.
+    setBuild(b) {
+      buildBadge.classList.toggle('hidden', !b);
+      if (b) {
+        buildBadge.textContent = `Сборка ${b}`;
+        buildBadge.dataset.b = b;
+      }
     },
     // Время смены: остаток в секундах (может быть отрицательным).
     setTimer(sec) {

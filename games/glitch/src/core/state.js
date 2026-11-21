@@ -20,6 +20,8 @@ export const DIFFICULTY = {
     markers: true, // жёлтый ромб над целью
     strict: false,
     shiftSec: 15 * 60, // время смены: уложился, получил звезду
+    shiftSec2: 18 * 60, // то же для главы 2
+    rowsNeeded: 4, // сколько строк таблицы сравнения нужно в главе 2
     mistakesForStar: 2, // сколько отчётов можно вернуть без потери звезды
   },
   normal: {
@@ -32,6 +34,8 @@ export const DIFFICULTY = {
     markers: true,
     strict: false,
     shiftSec: 10 * 60,
+    shiftSec2: 13 * 60,
+    rowsNeeded: 4,
     mistakesForStar: 1,
   },
   hard: {
@@ -44,6 +48,8 @@ export const DIFFICULTY = {
     markers: false,
     strict: true,
     shiftSec: 7 * 60,
+    shiftSec2: 9 * 60,
+    rowsNeeded: 5,
     mistakesForStar: 0,
   },
 };
@@ -76,7 +82,7 @@ export function newGame(name, difficulty) {
 
 // Принять сохранение от сайта. Имя и сложность берём из init.
 export function restoreGame(data, name, difficulty) {
-  if (!data || data.v !== 1 || data.chapter !== 1) return null;
+  if (!data || data.v !== 1 || ![1, 2].includes(data.chapter)) return null;
   game.state = {
     decisions: {},
     mistakes: 0,
@@ -88,6 +94,25 @@ export function restoreGame(data, name, difficulty) {
     difficulty: DIFFICULTY[difficulty] ? difficulty : data.difficulty || 'normal',
   };
   return game.state;
+}
+
+// Переход к главе 2: события главы 1 уходят в prev[1], общая история (решения, улики,
+// отчёты, журнал, чат, достижения) остаётся. Время, ошибки и подсказки считаются заново.
+export function beginChapter2() {
+  const s = game.state;
+  s.prev = s.prev || {};
+  s.prev[1] = { flags: s.flags, ending: s.ending || null, playTime: s.playTime || 0, mistakes: s.mistakes || 0, hintsUsed: s.hintsUsed || 0 };
+  s.chapter = 2;
+  s.flags = {};
+  s.scene = 'diagnostic';
+  s.pos = null;
+  s.playTime = 0;
+  s.mistakes = 0;
+  s.hintsUsed = 0;
+  s.ending = null;
+  s.ch2 = { build: '0.9.7', obs: {}, hasSwitcher: false };
+  save();
+  return s;
 }
 
 export function diff() {

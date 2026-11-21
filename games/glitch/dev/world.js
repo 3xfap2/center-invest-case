@@ -1,11 +1,14 @@
-// Предпросмотр сцен агента «Мир»: /dev/world.html?scene=office|station&cam=spawn&fx=archive,service,chalk,glitch,lantern
+// Предпросмотр сцен агента «Мир»: /dev/world.html?scene=office|station|diagnostic&build=0.9.3|0.9.5|0.9.7&cam=spawn&fx=archive,service,chalk,glitch,lantern,taken
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createOffice } from '../src/world/office.js';
 import { createStation } from '../src/world/station.js';
+import { createDiagnostic } from '../src/world/diagnostic.js';
 
 const params = new URLSearchParams(location.search);
-const sceneName = params.get('scene') === 'station' ? 'station' : 'office';
+const sceneName = ['station', 'diagnostic'].includes(params.get('scene')) ? params.get('scene') : 'office';
+const buildParam = params.get('build');
+const q = (extra) => `?scene=${sceneName}${buildParam ? `&build=${buildParam}` : ''}${extra}`;
 if (params.has('shot')) document.body.classList.add('shot');
 
 const canvas = document.getElementById('view');
@@ -13,7 +16,8 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight, false);
 
-const world = sceneName === 'station' ? createStation() : createOffice();
+const world = sceneName === 'station' ? createStation() : sceneName === 'diagnostic' ? createDiagnostic() : createOffice();
+if (buildParam && world.api && world.api.setBuild) world.api.setBuild(buildParam);
 const { scene } = world;
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 200);
 scene.add(camera); // чтобы дети камеры (фонарь) рендерились
@@ -38,13 +42,13 @@ const named = { spawn: world.spawn, ...(world.points || {}) };
 const camsEl = document.getElementById('cams');
 for (const [k, v] of Object.entries(named)) {
   const a = document.createElement('a');
-  a.href = `?scene=${sceneName}&cam=${k}`;
+  a.href = q(`&cam=${k}`);
   a.textContent = k;
   camsEl.append(a);
 }
 for (const k of Object.keys(world.cams || {})) {
   const a = document.createElement('a');
-  a.href = `?scene=${sceneName}&cam=${k}`;
+  a.href = q(`&cam=${k}`);
   a.textContent = 'cam:' + k;
   camsEl.append(a);
 }
@@ -76,7 +80,21 @@ function toggleLantern() {
   else camera.remove(l);
   api.setLanternOnHook(!lanternOn);
 }
-if (api) {
+if (api && sceneName === 'diagnostic') {
+  const el = document.getElementById('actions');
+  const actions = {
+    'взять прибор': () => api.takeSwitcher(),
+    'вернуть прибор': () => api.resetSwitcher(),
+  };
+  for (const b of ['0.9.3', '0.9.5', '0.9.7']) actions[b] = () => api.setBuild(b);
+  for (const [k, fn] of Object.entries(actions)) {
+    const b = document.createElement('button');
+    b.textContent = k;
+    b.onclick = fn;
+    el.append(b);
+  }
+  if (fx.includes('taken')) api.takeSwitcher();
+} else if (api) {
   const actions = {
     'фонарь': toggleLantern,
     'журнал (глитч)': () => api.setJournalVisible(false, { glitch: true }),
@@ -86,6 +104,7 @@ if (api) {
     'мел': () => api.setChalkVisible(true),
     'сброс': () => api.resetState(),
   };
+  if (api.setBuild) for (const b of ['0.9.3', '0.9.5', '0.9.7']) actions[b] = () => api.setBuild(b);
   const el = document.getElementById('actions');
   for (const [k, fn] of Object.entries(actions)) {
     const b = document.createElement('button');
@@ -131,7 +150,7 @@ function loop() {
   renderer.render(scene, camera);
   if (frame++ % 30 === 0) {
     const info = renderer.info.render;
-    statsEl.textContent = `scene: ${sceneName}\nmeshes: ${meshes}  points: ${points}\npointLights: ${lightsP}${lanternOn ? ' (+ фонарь)' : ''}\ndraw calls: ${info.calls}  tris: ${info.triangles}\ncolliders: ${world.colliders.length}\nslots: ${slotIds}\ncam: ${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)}`;
+    statsEl.textContent = `scene: ${sceneName}${api && api.getBuild ? '  build: ' + api.getBuild() : ''}\nmeshes: ${meshes}  points: ${points}\npointLights: ${lightsP}${lanternOn ? ' (+ фонарь)' : ''}\ndraw calls: ${info.calls}  tris: ${info.triangles}\ncolliders: ${world.colliders.length}\nslots: ${slotIds}\ncam: ${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)}`;
     window.__worldStats = { meshes, points, lightsP, calls: info.calls, tris: info.triangles };
   }
   requestAnimationFrame(loop);

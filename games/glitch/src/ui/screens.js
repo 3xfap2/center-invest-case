@@ -145,13 +145,13 @@ export function createScreens(root) {
     },
 
     // Финал главы: что стало с героями и карточка профессии.
-    chapterEnd({ endingTitle, characters, stars, score, skillsUsed, career }) {
+    chapterEnd({ chapterNo = 1, endingTitle, characters, stars, score, skillsUsed, career, teaser, hasNext = false }) {
       return new Promise((resolve) => {
         const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
         const s = show(
           `<div class="end-wrap">
             <div class="card">
-              <div class="end-kicker">Глава 1 завершена</div>
+              <div class="end-kicker">Глава ${chapterNo} завершена</div>
               <h2>${esc(endingTitle)}</h2>
               <div class="stars" aria-label="Звёзды: ${stars} из 3">${starStr}</div>
               <p class="score">Очки: ${score}</p>
@@ -159,7 +159,7 @@ export function createScreens(root) {
               <ul class="heroes">
                 ${characters.map((c) => `<li><b>${esc(c.name)}</b><span>${esc(c.text)}</span></li>`).join('')}
               </ul>
-              <p class="teaser">Глава 2. Комната, которой нет. Скоро.</p>
+              <p class="teaser">${esc(teaser || "")}</p>
             </div>
             <div class="card career">
               <div class="end-kicker">Карточка профессии</div>
@@ -188,7 +188,8 @@ export function createScreens(root) {
               <p class="checked">Данные проверены: ${esc(career.checked)}</p>
             </div>
             <div class="end-actions">
-              <button class="btn primary" data-a="exit">Выйти в меню</button>
+              ${hasNext ? `<button class="btn primary" data-a="next">Глава ${chapterNo + 1} ›</button>` : ''}
+              <button class="btn ${hasNext ? '' : 'primary'}" data-a="exit">Выйти в меню</button>
               <button class="btn" data-a="restart">Пройти заново</button>
             </div>
           </div>`,
