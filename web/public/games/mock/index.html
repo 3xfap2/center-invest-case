@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Тестовая игра</title>
+  <style>
+    body { margin: 0; padding: 24px; background: #0e1110; color: #eef1ec; font: 15px/1.5 ui-monospace, Consolas, monospace; }
+    h1 { font-size: 18px; margin: 0 0 12px; }
+    button { margin: 0 8px 8px 0; padding: 8px 12px; background: #1b201c; color: inherit; border: 1px solid #6e7a71; border-radius: 4px; font: inherit; cursor: pointer; }
+    pre { background: #161a17; padding: 12px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <!-- A tiny game for testing the site's side of the bridge. Not shown to players. -->
+  <h1>Тестовая игра (mock)</h1>
+  <div>
+    <button id="save">save</button>
+    <button id="flag">flag</button>
+    <button id="progress">progress</button>
+    <button id="achievement">achievement</button>
+    <button id="end">end</button>
+    <button id="exit">exit</button>
+    <button id="bad">bad messages</button>
+  </div>
+  <p>Состояние: <span id="state">ждём init</span> · Пауза: <span id="paused">нет</span> · Звук: <span id="muted">?</span></p>
+  <pre id="init"></pre>
+  <script src="./ns-bridge.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let counter = 0;
+    NS.onInit = (msg) => {
+      $('state').textContent = 'init получен';
+      $('init').textContent = JSON.stringify(msg);
+      $('muted').textContent = msg.muted ? 'выкл' : 'вкл';
+      counter = msg.save && typeof msg.save.counter === 'number' ? msg.save.counter : 0;
+    };
+    NS.pause = () => { $('paused').textContent = 'да'; };
+    NS.resume = () => { $('paused').textContent = 'нет'; };
+    NS.mute = (m) => { $('muted').textContent = m.muted ? 'выкл' : 'вкл'; };
+    $('save').onclick = () => NS.save({ v: 1, counter: ++counter, scene: 'mock-' + counter });
+    $('flag').onclick = () => NS.flag('mock_trusted_mentor', true);
+    $('progress').onclick = () => NS.progress('beat-' + counter, 50);
+    $('achievement').onclick = () => NS.achievement('mk_first_click');
+    $('end').onclick = () => NS.end({ ending: 'good', stars: 2, score: 120, durationSec: 95, choices: ['a', 'b'] });
+    $('exit').onclick = () => NS.exit();
+    // Messages the site must ignore: wrong ns, unknown type, bad payloads, a save without "v": 1, a huge save.
+    $('bad').onclick = () => {
+      const post = (m) => parent.postMessage(m, location.origin);
+      post({ ns: 2, type: 'end', ending: 'x', stars: 3, score: 1, durationSec: 1, choices: [] });
+      post({ ns: 1, type: 'hack' });
+      post({ ns: 1, type: 'end', ending: 'bad', stars: 9, score: 1, durationSec: 1, choices: [] });
+      post({ ns: 1, type: 'save', data: { counter: 999 } });
+      post({ ns: 1, type: 'save', data: { v: 1, junk: 'x'.repeat(70000) } });
+      post({ ns: 1, type: 'flag', key: '', value: { deep: true } });
+      post('just a string');
+    };
+    NS.ready('mock', '0.1.0');
+  </script>
+</body>
+</html>

@@ -29,3 +29,11 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Site: the mock game is committed (it is ours); its bridge copy and the game list are generated
+!web/public/games/mock/
+web/public/games/mock/ns-bridge.js
+web/src/games.generated.json
+# Finished single-file game builds delivered by the game teams (no build step needed to deploy them)
+!web/public/games/dym/
+!web/public/games/kompas/

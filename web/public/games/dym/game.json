@@ -1,0 +1,22 @@
+{
+  "id": "dym",
+  "title": "Дым",
+  "profession": "Пожарный",
+  "version": "0.1.0",
+  "entry": "index.html",
+  "approxSizeMB": 0.3,
+  "minutes": 20,
+  "controls": "WASD + мышь, ЛКМ вода, E действие, C присесть, B снаряжение",
+  "credits": "CREDITS.md",
+  "achievements": {
+    "dm_first_rescue": "Первый спасённый",
+    "dm_air_discipline": "С запасом",
+    "dm_full_crew": "Звено в сборе",
+    "dm_night_shift": "Первая смена"
+  },
+  "endings": {
+    "good": "Вместе до рассвета",
+    "steady": "Город просыпается",
+    "backup": "Подмога на рассвете"
+  }
+}
