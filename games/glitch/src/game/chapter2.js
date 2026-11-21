@@ -346,7 +346,9 @@ export function createChapter2(ctx) {
     ctx.block('cutscene', true);
     hud.glitch();
     await wait(600);
+    if (disposed) return;
     await screens.fadeOut('', '');
+    if (disposed) return; // главу уже сменили (меню отладки)
     setFlag('chapter_done');
     ctx.cutscene = false;
     ctx.finishChapter();

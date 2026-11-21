@@ -526,6 +526,9 @@ export function createHypotheses(root) {
 
   let items = [];
   let onVerdict = null;
+  // Подписи можно поменять при открытии (глава 4 открывает эту же панель как чек-лист ретеста)
+  const DEFAULT_LABELS = { title: 'Гипотезы Никиты', item: 'Гипотеза', lead: 'Проверь гипотезы из блокнота в консоли. Кнопки вердикта откроются, когда для гипотезы будет доказательство.' };
+  let labels = DEFAULT_LABELS;
   let local = {}; // вердикты, принятые игрой, пока она не прислала refresh
   let msgs = {};
   let busy = new Set();
@@ -556,7 +559,7 @@ export function createHypotheses(root) {
               ${!hasEv ? '<span class="c3-muted c3-hypo-note">Сначала собери доказательство</span>' : ''}
             </div>`;
         return `<li class="c3-hypo${v ? ' c3-hypo-done' : ''}" data-hypo="${esc(it.id)}">
-          <div class="c3-hypo-head"><span class="c3-hypo-num">Гипотеза ${i + 1}</span>${pill}</div>
+          <div class="c3-hypo-head"><span class="c3-hypo-num">${esc(labels.item)} ${i + 1}</span>${pill}</div>
           <p class="c3-claim">${esc(it.claim)}</p>
           <dl class="c3-hypo-meta">
             <dt>Как проверить</dt><dd>${it.hint ? richText(it.hint) : '<span class="c3-muted">нет подсказки</span>'}</dd>
@@ -571,7 +574,7 @@ export function createHypotheses(root) {
     const prevTop = sh.body.querySelector('.c3-scroll')?.scrollTop || 0;
     sh.body.innerHTML = `
       <div class="c3-scroll">
-        <p class="c3-lead">Проверь гипотезы из блокнота в консоли. Кнопки вердикта откроются, когда для гипотезы будет доказательство.</p>
+        <p class="c3-lead">${esc(labels.lead)}</p>
         ${total ? `<ol class="c3-hypos">${list}</ol>` : '<p class="c3-empty">Гипотез пока нет</p>'}
       </div>`;
     const sc = sh.body.querySelector('.c3-scroll');
@@ -610,6 +613,9 @@ export function createHypotheses(root) {
   function open(opts = {}) {
     setItems(opts.items);
     onVerdict = opts.onVerdict;
+    labels = { ...DEFAULT_LABELS, ...(opts.labels || {}) };
+    const titleEl = sh.layer.querySelector('.c3-head-title');
+    if (titleEl) titleEl.textContent = labels.title;
     local = {};
     msgs = {};
     render();

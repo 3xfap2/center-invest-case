@@ -114,6 +114,8 @@ await playtest(DEV, [], 'ch2-pc', 'playtest2.mjs');
 await playtest(DEV, ['--mobile'], 'ch2-phone', 'playtest2.mjs');
 await playtest(DEV, [], 'ch3-pc', 'playtest3.mjs');
 await playtest(DEV, ['--mobile'], 'ch3-phone', 'playtest3.mjs');
+await playtest(DEV, [], 'ch4-pc', 'playtest4.mjs');
+await playtest(DEV, ['--mobile'], 'ch4-phone', 'playtest4.mjs');
 
 // ---------- 3. Меню отладки и сайт в iframe ----------
 console.log('\n== Сайт в iframe и меню отладки');
@@ -158,7 +160,7 @@ try {
     await frame.click(`[data-p="${p}"]`);
     await frame.waitForFunction(() => window.__glitch.ctx.world && !window.__glitch.ctx.cutscene && !window.__glitch.blockers.has('menu'), null, { timeout: 15000 });
     const sc = await frame.evaluate(() => window.__glitch.ctx.sceneName);
-    const want = ['office', 'ch3_start', 'ch3_traces'].includes(p) ? 'office' : ['ch2_start', 'ch2_switcher', 'ch2_call', 'ch3_hypos'].includes(p) ? 'diagnostic' : 'station';
+    const want = ['office', 'ch3_start', 'ch3_traces', 'ch4_start'].includes(p) ? 'office' : ['ch2_start', 'ch2_switcher', 'ch2_call', 'ch3_hypos'].includes(p) ? 'diagnostic' : 'station';
     if (sc !== want) presetsOk = false;
   }
   check(`меню отладки: переход к ${presets.length} точкам главы`, presetsOk && presets.length >= 8);

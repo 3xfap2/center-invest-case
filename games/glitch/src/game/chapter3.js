@@ -529,6 +529,7 @@ export function createChapter3(ctx) {
     ctx.cutscene = true;
     ctx.block('cutscene', true);
     await screens.fadeOut('', '');
+    if (disposed) return; // главу уже сменили (меню отладки)
     setFlag('chapter_done');
     ctx.cutscene = false;
     ctx.finishChapter();
@@ -704,7 +705,7 @@ export function createChapter3(ctx) {
         score,
         durationSec,
         choices: Object.entries(s.decisions).map(([key, value]) => ({ key, value })),
-        teaser: 'Глава 4. Исправление. Скоро.',
+        teaser: 'Дальше: финал. Последняя сборка.',
         skillsUsed: [
           { text: 'Восстановил порядок событий по следам', done: flag('timeline_done') },
           { text: 'Подготовил условия теста через консоль отладки', done: !!flag('console_used') },

@@ -3,7 +3,7 @@ import { bus } from './core/events.js';
 import { initInput, input, isTouch } from './core/input.js';
 import { Player } from './core/player.js';
 import { Interactor } from './core/interact.js';
-import { game, newGame, restoreGame, loadLocalSave, clearLocalSave, save, unlock, diff, beginChapter2, beginChapter3, freshCh3 } from './core/state.js';
+import { game, newGame, restoreGame, loadLocalSave, clearLocalSave, save, unlock, diff, beginChapter2, beginChapter3, freshCh3, beginChapter4, freshCh4 } from './core/state.js';
 import { platform } from './core/platform.js';
 import { unlockAudio, setAmbience, setMuted, isMuted, suspendAudio } from './core/audio.js';
 import { createHud } from './ui/hud.js';
@@ -19,6 +19,8 @@ import { createCompare } from './ui/compare.js';
 import { ENDINGS2 } from './content/chapter2.js';
 import { createChapter3, DEBUG_PRESETS3, applyPreset3 } from './game/chapter3.js';
 import { ENDINGS3 } from './content/chapter3.js';
+import { createChapter4, DEBUG_PRESETS4, applyPreset4 } from './game/chapter4.js';
+import { ENDINGS4 } from './content/chapter4.js';
 import { createTimeline, createConsole, createHypotheses, createAutotest } from './ui/ch3panels.js';
 import { ENDINGS } from './content/meta.js';
 import { createIntro } from './world/intro.js';
@@ -166,7 +168,7 @@ function applyInit(data) {
   setMuted(!!data?.muted);
   let s = data?.save || null;
   if (!s && platform.standalone) s = loadLocalSave();
-  session.save = s && s.v === 1 && [1, 2, 3].includes(s.chapter) && (!s.flags?.chapter_done || s.chapter < 3) ? s : null;
+  session.save = s && s.v === 1 && [1, 2, 3, 4].includes(s.chapter) && (!s.flags?.chapter_done || s.chapter < 4) ? s : null;
 }
 
 platform.onCommand({
@@ -273,6 +275,7 @@ async function showStart() {
       if (game.state.flags.chapter_done) {
         if (game.state.chapter === 1) beginChapter2();
         else if (game.state.chapter === 2) beginChapter3();
+        else if (game.state.chapter === 3) beginChapter4();
       }
     } else {
       clearLocalSave();
@@ -298,7 +301,7 @@ async function startChapter(rebuild = false) {
   if (rebuild) buildWorlds();
   ctx.cutscene = false; // прошлая глава могла закрыться посреди катсцены (вступление, меню отладки)
   const no = game.state.chapter;
-  chapter = no === 3 ? createChapter3(ctx) : no === 2 ? createChapter2(ctx) : createChapter1(ctx);
+  chapter = no === 4 ? createChapter4(ctx) : no === 3 ? createChapter3(ctx) : no === 2 ? createChapter2(ctx) : createChapter1(ctx);
   if (!tablet) tablet = createTablet(uiRoot, tabletCallbacks);
   tablet.refresh?.();
   hud.show(true);
@@ -327,7 +330,8 @@ async function endChapter(forceEnding) {
   hud.setTimer(null);
   const r = chapter.result(forceEnding);
   const no = game.state.chapter;
-  if (no === 3) unlock('gl_chapter3');
+  if (no === 4) unlock('gl_chapter4');
+  else if (no === 3) unlock('gl_chapter3');
   else if (no === 2) unlock('gl_chapter2');
   else unlock('gl_chapter1');
   if (no === 1 && (game.state.hintsUsed || 0) === 0) unlock('gl_no_hints');
@@ -336,19 +340,21 @@ async function endChapter(forceEnding) {
   save(false);
   platform.saveNow(game.state);
   platform.end({ ending: r.ending, stars: r.stars, score: r.score, durationSec: r.durationSec, choices: r.choices });
-  const a = await screens.chapterEnd({ ...r, career, hasNext: no < 3 });
+  const a = await screens.chapterEnd({ ...r, career, hasNext: no < 4 });
   screens.close();
   session.save = null;
   if (a === 'next') {
     // Сайт запускает игру один раз, переходы между главами внутри игры.
     stopChapter();
     if (no === 1) beginChapter2();
-    else beginChapter3();
+    else if (no === 2) beginChapter3();
+    else beginChapter4();
     platform.saveNow(game.state);
     await startChapter(true);
   } else if (a === 'restart') {
     stopChapter();
-    if (no === 3) restartChapter3();
+    if (no === 4) restartChapter4();
+    else if (no === 3) restartChapter3();
     else if (no === 2) restartChapter2();
     else {
       clearLocalSave();
@@ -356,10 +362,11 @@ async function endChapter(forceEnding) {
     }
     await startChapter(true);
   } else {
-    // После главы 1 или 2 «Продолжить» ведёт в следующую.
-    if (no < 3) {
+    // После глав 1–3 «Продолжить» ведёт в следующую.
+    if (no < 4) {
       if (no === 1) beginChapter2();
-      else beginChapter3();
+      else if (no === 2) beginChapter3();
+      else beginChapter4();
       platform.saveNow(game.state);
       session.save = JSON.parse(JSON.stringify(game.state));
     }
@@ -387,6 +394,13 @@ function restartChapter2() {
 }
 
 // Пройти главу 3 заново: история глав 1 и 2 остаётся, события главы 3 сбрасываются.
+// Пройти финал заново: история глав 1–3 остаётся, события главы 4 сбрасываются.
+function restartChapter4() {
+  for (const k of Object.keys(game.state.decisions || {})) if (k.startsWith('gl_ch4_')) delete game.state.decisions[k];
+  Object.assign(game.state, { flags: {}, scene: 'office', pos: null, playTime: 0, mistakes: 0, hintsUsed: 0, ending: null, ch4: freshCh4() });
+  save();
+}
+
 function restartChapter3() {
   for (const k of Object.keys(game.state.decisions || {})) if (k.startsWith('gl_ch3_')) delete game.state.decisions[k];
   Object.assign(game.state, { flags: {}, scene: 'office', pos: null, playTime: 0, mistakes: 0, hintsUsed: 0, ending: null, ch3: freshCh3() });
@@ -472,17 +486,23 @@ function debugNewState(preset) {
   buildWorlds();
   clearLocalSave();
   newGame(session.nickname, session.difficulty);
-  if (preset.startsWith('ch2') || preset.startsWith('ch3')) {
-    applyPreset(game.state, 'door'); // глава 1 пройдена
-    game.state.flags.chapter_done = true;
-    beginChapter2();
-    if (preset.startsWith('ch3')) {
-      applyPreset2(game.state, 'ch2_call'); // глава 2 пройдена
-      game.state.flags.chapter_done = true;
-      beginChapter3();
-      applyPreset3(game.state, preset);
-    } else applyPreset2(game.state, preset);
-  } else applyPreset(game.state, preset);
+  const ch = /^ch(\d)/.exec(preset)?.[1] | 0; // номер главы точки отладки (0: глава 1)
+  if (!ch) {
+    applyPreset(game.state, preset);
+    return;
+  }
+  applyPreset(game.state, 'door'); // глава 1 пройдена
+  game.state.flags.chapter_done = true;
+  beginChapter2();
+  if (ch === 2) return void applyPreset2(game.state, preset);
+  applyPreset2(game.state, 'ch2_call'); // глава 2 пройдена
+  game.state.flags.chapter_done = true;
+  beginChapter3();
+  if (ch === 3) return void applyPreset3(game.state, preset);
+  applyPreset3(game.state, 'ch3_hypos'); // глава 3 пройдена
+  Object.assign(game.state.flags, { autotest_done: true, nikita_posted: true, chapter_done: true });
+  beginChapter4();
+  applyPreset4(game.state, preset);
 }
 
 function mountDebug() {
@@ -490,9 +510,9 @@ function mountDebug() {
   el.className = 'debug-menu';
   el.innerHTML = `<button data-t>DEBUG (F2)</button><div class="debug-panel hidden">
     <b>Перейти к сцене</b>
-    ${[...DEBUG_PRESETS, ...DEBUG_PRESETS2, ...DEBUG_PRESETS3].map(([id, label]) => `<button data-p="${id}">${label}</button>`).join('')}
+    ${[...DEBUG_PRESETS, ...DEBUG_PRESETS2, ...DEBUG_PRESETS3, ...DEBUG_PRESETS4].map(([id, label]) => `<button data-p="${id}">${label}</button>`).join('')}
     <b>Получить концовку</b>
-    ${Object.entries({ ...ENDINGS, ...ENDINGS2, ...ENDINGS3 })
+    ${Object.entries({ ...ENDINGS, ...ENDINGS2, ...ENDINGS3, ...ENDINGS4 })
       .map(([id, e]) => `<button data-e="${id}">${e.title} (${id})</button>`)
       .join('')}
     <b>Сложность</b>
@@ -531,7 +551,7 @@ function mountDebug() {
       return;
     }
     if (b.dataset.e) {
-      debugNewState(ENDINGS3[b.dataset.e] ? 'ch3_hypos' : ENDINGS2[b.dataset.e] ? 'ch2_call' : 'door');
+      debugNewState(ENDINGS4[b.dataset.e] ? 'ch4_lis' : ENDINGS3[b.dataset.e] ? 'ch3_hypos' : ENDINGS2[b.dataset.e] ? 'ch2_call' : 'door');
       await startChapter();
       if (b.dataset.e === 'gl_ch1_thorough') game.state.evidence.chalk_note = true;
       endChapter(b.dataset.e);

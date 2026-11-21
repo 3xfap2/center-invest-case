@@ -5,8 +5,8 @@
   "version": "0.1.0",
   "entry": "index.html",
   "approxSizeMB": 0.7,
-  "minutes": 31,
-  "chapters": 3,
+  "minutes": 40,
+  "chapters": 4,
   "controls": "ПК: WASD и мышь, E действие, Tab планшет, Esc пауза. Телефон: джойстик, свайп для обзора, кнопки «Действие» и «Планшет»",
   "credits": "CREDITS.md"
 }
