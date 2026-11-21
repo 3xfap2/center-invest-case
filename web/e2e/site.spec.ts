@@ -35,7 +35,7 @@ test('landing: the poster shelf switches the hero, by mouse and keyboard, and le
 
   await page.getByTestId('game-glitch').click();
   await expect(page.getByTestId('game-glitch')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('GLITCH');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('ГЛИТЧ');
   await expect(page.getByTestId('hero')).toContainText('Завтра релиз');
 
   await page.getByTestId('game-glitch').focus();
