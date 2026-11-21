@@ -6,7 +6,7 @@ Updated at each check-in: 18:00, 21:00, 09:00, 12:00. Code freeze 14:00 on 22 No
 |---|---|---|---|---|
 | GLITCH (`games/glitch`) | friend's Claude Code | | | |
 | Чужое имя (`games/chuzhoe-imya`) | Codex | | | |
-| Site + save + backend (`web`, `server`) | — | not started | | |
+| Site + save + backend (`web`, `server`) | Claude (site window) | backend `server/` next | site shell: landing, start, game select, iframe host + bridge, local saves + API sync, results, mock game; 40 unit + 11 e2e tests | real game builds for integration |
 | Presentation | — | not started | | |
 
 ## Rules

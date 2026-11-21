@@ -1,0 +1,99 @@
+import { z } from 'zod';
+import {
+  DifficultySchema, EndSchema, FlagKeySchema, FlagValueSchema, ProgressSchema, SaveDataSchema,
+  type Difficulty, type EndResult, type FlagValue, type Progress, type SaveData,
+} from '../bridge/messages';
+
+/** Everything the site keeps about a player. Pure functions here; the zustand store in store.ts calls them. */
+
+export const NICKNAME = /^[\p{L}\p{N} _-]{2,20}$/u;
+export const isNickname = (s: string) => NICKNAME.test(s) && s.trim().length >= 2;
+
+export const MAX_RUNS = 50;
+
+const PlayerSchema = z.object({
+  id: z.string().min(1).max(64),
+  nickname: z.string().regex(NICKNAME),
+  difficulty: DifficultySchema,
+  /** Bearer token from the server, or null while the player exists only on this device. */
+  token: z.string().max(200).nullable(),
+});
+export type Player = z.infer<typeof PlayerSchema>;
+
+const GameSaveSchema = z.object({
+  data: SaveDataSchema.nullable(),
+  progress: ProgressSchema.nullable(),
+  achievements: z.array(z.string()).max(200),
+  updatedAt: z.number(),
+});
+export type GameSave = z.infer<typeof GameSaveSchema>;
+
+const RunSchema = EndSchema.extend({
+  gameId: z.string(),
+  difficulty: DifficultySchema,
+  /** Achievements first earned during this run. */
+  earned: z.array(z.string()),
+  at: z.number(),
+  /** true once the server has accepted (or finally rejected) it. */
+  synced: z.boolean(),
+});
+export type Run = z.infer<typeof RunSchema>;
+
+export const SavedStateSchema = z.object({
+  player: PlayerSchema.nullable(),
+  muted: z.boolean(),
+  /** Shared by all games: a choice in one game can matter in another. */
+  flags: z.record(FlagKeySchema, FlagValueSchema),
+  games: z.record(z.string(), GameSaveSchema),
+  runs: z.array(RunSchema).max(MAX_RUNS),
+});
+export type SavedState = z.infer<typeof SavedStateSchema>;
+
+export const emptyState = (): SavedState => ({ player: null, muted: false, flags: {}, games: {}, runs: [] });
+
+const emptyGame = (): GameSave => ({ data: null, progress: null, achievements: [], updatedAt: 0 });
+const gameOf = (s: SavedState, id: string) => s.games[id] ?? emptyGame();
+const withGame = (s: SavedState, id: string, g: Partial<GameSave>, now: number): SavedState => ({
+  ...s,
+  games: { ...s.games, [id]: { ...gameOf(s, id), ...g, updatedAt: now } },
+});
+
+export function setPlayer(s: SavedState, nickname: string, difficulty: Difficulty, newId: () => string): SavedState {
+  const nick = nickname.trim();
+  const old = s.player;
+  // A new nickname means a new player on the server, so the old token is dropped.
+  const token = old && old.nickname === nick ? old.token : null;
+  return { ...s, player: { id: old?.id ?? newId(), nickname: nick, difficulty, token } };
+}
+
+export const setToken = (s: SavedState, token: string | null): SavedState =>
+  s.player ? { ...s, player: { ...s.player, token } } : s;
+
+export const applySave = (s: SavedState, gameId: string, data: SaveData, now: number) => withGame(s, gameId, { data }, now);
+
+export const setFlag = (s: SavedState, key: string, value: FlagValue): SavedState => ({ ...s, flags: { ...s.flags, [key]: value } });
+
+export const setProgress = (s: SavedState, gameId: string, progress: Progress, now: number) =>
+  withGame(s, gameId, { progress }, now);
+
+/** Returns the same state object when the achievement is already owned. */
+export function addAchievement(s: SavedState, gameId: string, id: string, now: number): SavedState {
+  const g = gameOf(s, gameId);
+  if (g.achievements.includes(id)) return s;
+  return withGame(s, gameId, { achievements: [...g.achievements, id] }, now);
+}
+
+export function finishRun(s: SavedState, gameId: string, end: EndResult, earned: string[], now: number): { state: SavedState; run: Run } {
+  const run: Run = { ...end, gameId, difficulty: s.player?.difficulty ?? 'normal', earned, at: now, synced: false };
+  return { state: { ...s, runs: [...s.runs, run].slice(-MAX_RUNS) }, run };
+}
+
+export const markRunSynced = (s: SavedState, at: number): SavedState => ({
+  ...s,
+  runs: s.runs.map((r) => (r.at === at ? { ...r, synced: true } : r)),
+});
+
+/** "Начать заново": the story starts again. Achievements and finished runs stay. */
+export const resetGame = (s: SavedState, gameId: string, now: number) => withGame(s, gameId, { data: null, progress: null }, now);
+
+export const lastRun = (s: SavedState, gameId: string) => [...s.runs].reverse().find((r) => r.gameId === gameId) ?? null;

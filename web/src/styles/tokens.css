@@ -1,0 +1,126 @@
+/*
+ * ПрофНавигатор · design tokens (carried over from «Ночная смена»)
+ *
+ * How to use (Tailwind v4):
+ *   src/index.css
+ *     @import "tailwindcss";
+ *     @import "./styles/fonts.css";
+ *     @import "./styles/tokens.css";
+ *
+ * Every colour pair used for text was checked against WCAG 2.x (ratios in comments).
+ * --ns-ci-green is a TEMPORARY stand-in. Replace it with the green sampled from the
+ * official Центр-инвест logo file. It is the only value to change.
+ */
+
+:root {
+  /* Brand */
+  --ns-ci-green: #50B848;      /* Sampled from the official logo (centrinvest.ru/pictures/logo.svg). ~7.2:1 on --ns-bg, --ns-on-accent on it ~7.3:1 */
+
+  /* Night grounds (warm green-black, never navy) */
+  --ns-bg: #121513;            /* page */
+  --ns-bg-deep: #0E1110;       /* top bars, decision bar, footer */
+  --ns-bg-map: #161A17;        /* map, side panels */
+  --ns-surface: #1B201C;       /* cards, inputs */
+  --ns-surface-2: #222823;     /* hover, own chat bubble */
+  --ns-line: #2E3630;          /* decorative hairlines only (1.5:1) */
+  --ns-line-strong: #6E7A71;   /* control borders: inputs, secondary buttons (3.7:1 on surface) */
+  --ns-frame: #2A302B;         /* device frames in mock-ups */
+
+  /* Text */
+  --ns-text: #EEF1EC;          /* 16.1:1 on bg */
+  --ns-text-2: #C9D0CA;        /* 10.5:1 on surface */
+  --ns-muted: #A3ADA5;         /* 7.9:1 on bg, 6.5:1 on surface-2 */
+  --ns-on-accent: #0D140F;     /* text on green, amber, orange, blue fills */
+
+  /* Meaning (each also carries a label or icon, never colour alone) */
+  --ns-ai: #F2B544;            /* the AI and its verdicts. 10.0:1 on bg */
+  --ns-ai-soft: #FFD27F;       /* link hover */
+  --ns-threat: #FF7A59;        /* attack, block, suspicious evidence. 7.2:1 on bg */
+  --ns-escalate: #8DBEFF;      /* escalate to shift lead. 9.6:1 on bg */
+  --ns-safe: var(--ns-ci-green);
+
+  /* Type */
+  --ns-font-display: "Tektur Variable", "Tektur", "Golos Text Variable", system-ui, sans-serif;
+  --ns-font-body: "Golos Text Variable", "Golos Text", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ns-font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
+
+  /* Radii */
+  --ns-radius-sm: 3px;
+  --ns-radius-md: 6px;
+  --ns-radius-lg: 10px;
+
+  /* Shadows (used sparingly: floating cards and the stamp only) */
+  --ns-shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --ns-shadow-dot: 0 0 0 7px color-mix(in srgb, var(--ns-ci-green) 18%, transparent);
+
+  /* Motion */
+  --ns-dur-fast: 120ms;
+  --ns-dur-base: 200ms;
+  --ns-dur-slow: 360ms;
+  --ns-dur-stamp: 280ms;
+  --ns-hook-step: 1400ms;      /* live hook: one step every 1.4 s, 5 steps per loop */
+  --ns-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ns-ease-stamp: cubic-bezier(0.2, 1.4, 0.4, 1);
+
+  /* Focus */
+  --ns-focus: 3px solid var(--ns-ai);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-ci-green: var(--ns-ci-green);
+  --color-bg: var(--ns-bg);
+  --color-bg-deep: var(--ns-bg-deep);
+  --color-bg-map: var(--ns-bg-map);
+  --color-surface: var(--ns-surface);
+  --color-surface-2: var(--ns-surface-2);
+  --color-line: var(--ns-line);
+  --color-line-strong: var(--ns-line-strong);
+  --color-frame: var(--ns-frame);
+  --color-text: var(--ns-text);
+  --color-text-2: var(--ns-text-2);
+  --color-muted: var(--ns-muted);
+  --color-on-accent: var(--ns-on-accent);
+  --color-ai: var(--ns-ai);
+  --color-ai-soft: var(--ns-ai-soft);
+  --color-threat: var(--ns-threat);
+  --color-escalate: var(--ns-escalate);
+  --color-safe: var(--ns-safe);
+
+  --font-display: var(--ns-font-display);
+  --font-body: var(--ns-font-body);
+  --font-mono: var(--ns-font-mono);
+
+  /* Type scale: size / line-height */
+  --text-caption: 0.75rem;     --text-caption--line-height: 1.4;    /* 12 */
+  --text-label: 0.8125rem;     --text-label--line-height: 1.4;      /* 13 */
+  --text-small: 0.875rem;      --text-small--line-height: 1.45;     /* 14 */
+  --text-body: 1rem;           --text-body--line-height: 1.5;       /* 16 */
+  --text-lead: 1.0625rem;      --text-lead--line-height: 1.4;       /* 17 */
+  --text-lead-lg: 1.3125rem;   --text-lead-lg--line-height: 1.4;    /* 21 */
+  --text-h3: 1.375rem;         --text-h3--line-height: 1.3;         /* 22 */
+  --text-h2: 2rem;             --text-h2--line-height: 1.15;        /* 32 */
+  --text-h1: 3rem;             --text-h1--line-height: 1.05;        /* 48 */
+  --text-hero-sm: 2.375rem;    --text-hero-sm--line-height: 1.05;   /* 38 · phone hero */
+  --text-hero: 4rem;           --text-hero--line-height: 1;         /* 64 · desktop hero */
+
+  --radius-sm: var(--ns-radius-sm);
+  --radius-md: var(--ns-radius-md);
+  --radius-lg: var(--ns-radius-lg);
+
+  --shadow-pop: var(--ns-shadow-pop);
+  --shadow-dot: var(--ns-shadow-dot);
+
+  --ease-out-soft: var(--ns-ease-out);
+  --ease-stamp: var(--ns-ease-stamp);
+}
+
+/* Spacing: Tailwind's default 4 px step (p-1 = 4 px). Rhythm used: 4 8 12 16 20 24 32 40 48 56 64 72. */
+
+@layer base {
+  html { background: var(--ns-bg); color: var(--ns-text); font-family: var(--ns-font-body); }
+  :where(a, button, input, label, [tabindex]):focus-visible { outline: var(--ns-focus); outline-offset: 2px; }
+  a { color: var(--ns-ai); }
+  a:hover { color: var(--ns-ai-soft); }
+}
