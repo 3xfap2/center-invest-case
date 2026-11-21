@@ -45,6 +45,7 @@ func NewHandler(cfg Config, store *Store, log *slog.Logger) http.Handler {
 	api.HandleFunc("GET /api/v1/health", a.health)
 	api.HandleFunc("POST /api/v1/players", a.createPlayer)
 	api.HandleFunc("GET /api/v1/players/me", a.auth(a.me))
+	api.HandleFunc("GET /api/v1/players/check", a.checkNickname)
 	api.HandleFunc("POST /api/v1/players/me/password", a.auth(a.setPassword))
 	api.HandleFunc("POST /api/v1/login", a.login)
 	api.HandleFunc("POST /api/v1/logout", a.auth(a.logout))
@@ -235,6 +236,10 @@ func (a *API) createPlayer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p, err := a.store.CreatePlayer(r.Context(), id, nick, hashToken(token))
+	if errors.Is(err, errTaken) {
+		fail(w, 409, "nickname_taken", "Этот ник уже занят")
+		return
+	}
 	if err != nil {
 		a.internal(w, "create player", err)
 		return
@@ -248,6 +253,21 @@ func randomID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// checkNickname lets the start screen say «свободен» or «занят» while the player types.
+func (a *API) checkNickname(w http.ResponseWriter, r *http.Request) {
+	nick, ok := cleanNickname(r.URL.Query().Get("nickname"))
+	if !ok {
+		writeJSON(w, 200, map[string]bool{"valid": false, "available": false})
+		return
+	}
+	taken, err := a.store.NicknameTaken(r.Context(), loginKey(nick))
+	if err != nil {
+		a.internal(w, "check nickname", err)
+		return
+	}
+	writeJSON(w, 200, map[string]bool{"valid": true, "available": !taken})
 }
 
 func (a *API) me(w http.ResponseWriter, _ *http.Request, p Player) {

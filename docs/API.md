@@ -62,3 +62,11 @@ Playing never needs a password: a nickname is enough. A player **may** later pro
 `GET /api/v1/players/me` also returns `"hasPassword"`. Known games now include `kompas` and `dym`.
 
 **Passwords:** stored only as bcrypt hashes (cost 10). Login has its own rate limit: 10 attempts per IP per minute. A login for a nickname that doesn't exist takes as long as a wrong password, so the timing doesn't reveal which nicknames have accounts.
+
+## Unique nicknames (v1.2)
+
+- **Every nickname is unique**, case-insensitive, «ё» = «е». `POST /api/v1/players` answers `409 nickname_taken` for a nickname that's already registered.
+- `GET /api/v1/players/check?nickname=…` → `200 { "valid": bool, "available": bool }`: the start screen uses it to say «свободен» or «занят» while the player types.
+- **Coming back on the same device** needs nothing: the browser keeps the session token after the browser is closed or the computer is turned off.
+- **Another device:** the nickname alone isn't enough (otherwise anyone could play as anyone); the player logs in with the optional password.
+- Upgrading an older database: duplicate nicknames are renamed (the password account, then the oldest player, keeps the nickname; others get «-2», «-3»…).

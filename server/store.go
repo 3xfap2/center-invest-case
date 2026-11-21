@@ -18,8 +18,61 @@ type Store struct{ db *sql.DB }
 
 var errNotFound = errors.New("not found")
 
-// migrations run in order; PRAGMA user_version remembers how many have been applied.
-var migrations = []string{
+// migrations run in order, each in its own transaction; PRAGMA user_version remembers how many have been applied.
+type migration func(tx *sql.Tx) error
+
+var migrations = []migration{sqlStep(sqlMigrations[0]), sqlStep(sqlMigrations[1]), uniqueNicknames}
+
+func sqlStep(q string) migration {
+	return func(tx *sql.Tx) error { _, err := tx.Exec(q); return err }
+}
+
+// 3: every nickname is unique (case-insensitive, «ё» = «е»), not only those with a password.
+// Older databases may hold duplicates: the oldest player keeps the nickname, later ones get «-2», «-3»…
+func uniqueNicknames(tx *sql.Tx) error {
+	type row struct {
+		id, nick string
+		key      sql.NullString
+	}
+	rows, err := tx.Query(`SELECT id, nickname, login_key FROM players ORDER BY login_key IS NULL, created_at, id`)
+	if err != nil {
+		return err
+	}
+	var all []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.nick, &r.key); err != nil {
+			rows.Close()
+			return err
+		}
+		all = append(all, r)
+	}
+	rows.Close()
+	used := map[string]bool{}
+	for _, r := range all {
+		if r.key.Valid { // password accounts already own their keys
+			used[r.key.String] = true
+			continue
+		}
+		nick := r.nick
+		for i := 2; used[loginKey(nick)]; i++ {
+			suffix := fmt.Sprintf("-%d", i)
+			base := []rune(r.nick)
+			if len(base)+len([]rune(suffix)) > 20 {
+				base = base[:20-len([]rune(suffix))]
+			}
+			nick = string(base) + suffix
+		}
+		used[loginKey(nick)] = true
+		if _, err := tx.Exec(`UPDATE players SET nickname = ?, login_key = ? WHERE id = ?`, nick, loginKey(nick), r.id); err != nil {
+			return err
+		}
+	}
+	_, err = tx.Exec(`DROP INDEX players_login; CREATE UNIQUE INDEX players_login ON players (login_key);`)
+	return err
+}
+
+var sqlMigrations = []string{
 	`CREATE TABLE players (
 		id          TEXT PRIMARY KEY,
 		nickname    TEXT NOT NULL,
@@ -101,7 +154,7 @@ func (s *Store) migrate() error {
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(migrations[i]); err != nil {
+		if err := migrations[i](tx); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("migration %d: %w", i+1, err)
 		}
@@ -124,7 +177,7 @@ type Player struct {
 	HasPassword             bool
 }
 
-// CreatePlayer makes an anonymous player (nickname only) with its first session.
+// CreatePlayer registers a nickname (no password) with its first session. errTaken if the nickname is in use.
 func (s *Store) CreatePlayer(ctx context.Context, id, nickname string, tokenHash []byte) (Player, error) {
 	p := Player{ID: id, Nickname: nickname, TokenHash: tokenHash, CreatedAt: now()}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -132,7 +185,11 @@ func (s *Store) CreatePlayer(ctx context.Context, id, nickname string, tokenHash
 		return p, err
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `INSERT INTO players (id, nickname, token_hash, created_at) VALUES (?, ?, ?, ?)`, p.ID, p.Nickname, p.TokenHash, p.CreatedAt); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO players (id, nickname, login_key, token_hash, created_at) VALUES (?, ?, ?, ?, ?)`,
+		p.ID, p.Nickname, loginKey(p.Nickname), p.TokenHash, p.CreatedAt); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: players.login_key") {
+			return p, errTaken
+		}
 		return p, err
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO sessions (token_hash, player_id, created_at) VALUES (?, ?, ?)`, p.TokenHash, p.ID, p.CreatedAt); err != nil {
@@ -169,6 +226,13 @@ func (s *Store) Login(ctx context.Context, loginKey string) (id, nickname, hash 
 		err = errNotFound
 	}
 	return
+}
+
+// NicknameTaken reports whether any player already uses this nickname (case-insensitive).
+func (s *Store) NicknameTaken(ctx context.Context, loginKey string) (bool, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM players WHERE login_key = ?`, loginKey).Scan(&n)
+	return n > 0, err
 }
 
 func (s *Store) AddSession(ctx context.Context, playerID string, tokenHash []byte) error {

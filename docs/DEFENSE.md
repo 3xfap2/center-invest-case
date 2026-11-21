@@ -97,8 +97,13 @@ Browser ──► Go server :8080
 - **Optional password:** after playing, a player can protect their nickname with a password and then log in from any device. Their saves, flags and achievements are restored from the server.
 - **Why optional:** the case requires «без регистрации (можно ник)». A teen starts with a nickname in seconds; the password is an extra they choose, not a gate.
 - **What we store:** nickname, a bcrypt hash of the password (never the password itself), session token hashes (one per device). No email, phone, age or IP.
-- **Attacks we handle:** password guessing (bcrypt + 10 login attempts per IP per minute), finding out which nicknames have accounts (the same answer and the same timing for "no such nickname" and "wrong password"), a stolen database (only hashes), one device logging out the others (separate sessions).
+- **Attacks we handle:** password guessing (bcrypt + 10 login attempts per IP per minute), finding out which nicknames have accounts (nicknames are public on the leaderboard, but the same answer and the same timing for "no password on this nickname" and "wrong password"), a stolen database (only hashes), one device logging out the others (separate sessions).
 
 ### Achievements leaderboard
 - Games report achievements through the bridge; the site checks the game's prefix and sends them to `POST /api/v1/achievements` (repeats are ignored).
 - `GET /api/v1/leaderboard/achievements` ranks players by the number of achievements across all games; ties go to whoever reached the number first. The test game doesn't count.
+
+### "Who is the user, if there's no registration?"
+- **The nickname is the identity, and it's unique.** The database refuses a nickname that already exists (case-insensitive, «ё» = «е»), and the start screen shows «свободен» / «занят» while typing.
+- **Coming back is automatic on the same device:** the browser keeps a random session token, so closing the browser or turning off the computer doesn't lose the player.
+- **Why not "type the nickname on any computer and you're in"?** Then any classmate could type your nickname and play as you. For another device there's the optional password; without it, the nickname only works where it was created.

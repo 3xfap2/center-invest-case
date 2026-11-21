@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -37,9 +40,8 @@ func TestPasswordAndLogin(t *testing.T) {
 		t.Fatalf("me: %v", v)
 	}
 
-	// Another player with the same nickname (any case, ё = е) can't claim it.
-	other := e.player("АНЯ")
-	if code, v, _ := e.do("POST", "/api/v1/players/me/password", other, `{"password":"another1"}`); code != 409 || errCode(v) != "nickname_taken" {
+	// Nobody else can register the same nickname (any case).
+	if code, v, _ := e.do("POST", "/api/v1/players", "", `{"nickname":"АНЯ"}`); code != 409 || errCode(v) != "nickname_taken" {
 		t.Fatalf("taken: %d %v", code, v)
 	}
 
@@ -166,7 +168,7 @@ func TestMigrationFromV1KeepsPlayersLoggedIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	token := "old-device-token-0123456789abcdef"
-	for _, q := range []string{migrations[0], `PRAGMA user_version = 1`} {
+	for _, q := range []string{sqlMigrations[0], `PRAGMA user_version = 1`} {
 		if _, err := db.Exec(q); err != nil {
 			t.Fatal(err)
 		}
@@ -185,5 +187,82 @@ func TestMigrationFromV1KeepsPlayersLoggedIn(t *testing.T) {
 	p, err := s.PlayerByTokenHash(context.Background(), hashToken(token))
 	if err != nil || p.Nickname != "Старый" || p.HasPassword {
 		t.Fatalf("after upgrade: %+v %v", p, err)
+	}
+}
+
+func TestNicknamesAreUnique(t *testing.T) {
+	e := newEnv(t, Config{})
+	e.player("Ёжик")
+	for _, nick := range []string{"Ёжик", "ёжик", "ЕЖИК", "  ежик "} {
+		if code, v, _ := e.do("POST", "/api/v1/players", "", `{"nickname":"`+nick+`"}`); code != 409 || errCode(v) != "nickname_taken" {
+			t.Fatalf("%q: %d %v", nick, code, v)
+		}
+	}
+	cases := []struct {
+		nick             string
+		valid, available bool
+	}{
+		{"ежик", true, false},
+		{"Ёжик_2", true, true},
+		{"a", false, false},
+		{"сука", false, false},
+	}
+	for _, c := range cases {
+		_, v, _ := e.do("GET", "/api/v1/players/check?nickname="+url.QueryEscape(c.nick), "", "")
+		m := v.(map[string]any)
+		if m["valid"] != c.valid || m["available"] != c.available {
+			t.Errorf("%q: %v", c.nick, m)
+		}
+	}
+}
+
+func TestUpgradeRenamesDuplicateNicknames(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "dupes.db")
+	db, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{sqlMigrations[0], sqlMigrations[1], `PRAGMA user_version = 2`} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Three players called «Аня» in different cases, created in this order; the second one has a password.
+	for i, nick := range []string{"Аня", "АНЯ", "аня"} {
+		tok := hashToken(fmt.Sprintf("token-%d-0123456789abcdef", i))
+		if _, err := db.Exec(`INSERT INTO players (id, nickname, token_hash, created_at) VALUES (?, ?, ?, ?)`, fmt.Sprint("p", i), nick, tok, fmt.Sprintf("2026-11-21T10:0%d:00Z", i)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO sessions (token_hash, player_id, created_at) VALUES (?, ?, '2026-11-21T10:00:00Z')`, tok, fmt.Sprint("p", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`UPDATE players SET password_hash = 'x', login_key = 'аня' WHERE id = 'p1'`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	got := map[string]string{}
+	for i := 0; i < 3; i++ {
+		p, err := s.PlayerByTokenHash(context.Background(), hashToken(fmt.Sprintf("token-%d-0123456789abcdef", i)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got[p.ID] = p.Nickname
+	}
+	// The password account keeps its nickname; the others get numbered, oldest first.
+	want := map[string]string{"p1": "АНЯ", "p0": "Аня-2", "p2": "аня-3"}
+	for id, nick := range want {
+		if got[id] != nick {
+			t.Fatalf("after upgrade: %v, want %v", got, want)
+		}
+	}
+	if _, err := s.CreatePlayer(context.Background(), "p9", "аня", hashToken("new-token-0123456789")); !errors.Is(err, errTaken) {
+		t.Fatalf("duplicate after upgrade: %v", err)
 	}
 }
