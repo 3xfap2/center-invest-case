@@ -292,7 +292,7 @@ export function createStation() {
   add(box(3.7, 0.62, 0.08, trim, 0, 3.15, -0.95));
   for (const x of [-1.5, 1.5]) add(ccyl(0.012, 0.012, 0.3, 0x1a1a1a, x, 3.76, -0.95, 4));
   {
-    const opts = { width: 3.5, height: 0.52, bg: '#22403a', fg: '#f2e6c8', font: 'bold 170px serif' };
+    const opts = { width: 3.5, height: 0.52, bg: '#5b1a24', fg: '#f2e6c8', font: 'bold 170px serif', pad: 48 }; // бордовый
     const a = textPlane('Станция Рассвет', opts);
     a.position.set(0, 3.46, -1.0);
     a.rotation.y = Math.PI;

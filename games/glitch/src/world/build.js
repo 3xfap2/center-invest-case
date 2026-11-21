@@ -73,11 +73,19 @@ export function textPlane(text, { width = 1, height = 0.3, bg = '#1b2430', fg = 
     g.fillRect(0, 0, pxW, pxH);
   }
   g.fillStyle = fg;
-  g.font = font;
   g.textAlign = align;
   g.textBaseline = 'middle';
   const lines = String(text).split('\n');
-  const size = parseInt(font.match(/(\d+)px/)?.[1] || 64, 10);
+  // Текст всегда помещается в табличку: если шрифт велик, уменьшаем его по ширине и высоте.
+  let size = parseInt(font.match(/(\d+)px/)?.[1] || 64, 10);
+  const fontAt = (px) => font.replace(/\d+px/, `${px}px`);
+  g.font = fontAt(size);
+  const widest = Math.max(...lines.map((ln) => g.measureText(ln).width), 1);
+  const fit = Math.min(1, (pxW - pad * 2) / widest, (pxH * 0.86) / (lines.length * size * lineHeight));
+  if (fit < 1) {
+    size = Math.floor(size * fit);
+    g.font = fontAt(size);
+  }
   const total = lines.length * size * lineHeight;
   const x = align === 'center' ? pxW / 2 : align === 'right' ? pxW - pad : pad;
   lines.forEach((ln, i) => g.fillText(ln, x, pxH / 2 - total / 2 + size * lineHeight * (i + 0.5)));

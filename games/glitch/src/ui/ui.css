@@ -1032,3 +1032,32 @@ button {
   left: 50%;
   transform: translateX(-50%);
 }
+
+/* Задача и таймер смены одной колонкой: таймер всегда под задачей, даже если она длинная */
+.hud-tl {
+  position: absolute;
+  left: max(14px, env(safe-area-inset-left));
+  top: max(12px, env(safe-area-inset-top));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: min(400px, 58vw);
+}
+.hud-tl .objective,
+.hud-tl .shift-timer {
+  position: static;
+  max-width: 100%;
+}
+
+/* Телефон: задача компактнее, чтобы не закрывать полэкрана */
+@media (max-width: 900px), (max-height: 500px) {
+  .hud-tl {
+    max-width: min(360px, 46vw);
+  }
+  .hud-tl .objective {
+    font-size: 12.5px;
+    line-height: 1.3;
+    padding: 6px 10px;
+  }
+}

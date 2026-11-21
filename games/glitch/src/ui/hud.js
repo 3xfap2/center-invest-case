@@ -12,8 +12,10 @@ export function createHud(root) {
   el.innerHTML = `
     <div class="crosshair"></div>
     <div class="prompt hidden"></div>
-    <div class="objective hidden"><small>Задача</small><span></span></div>
-    <div class="shift-timer hidden"></div>
+    <div class="hud-tl">
+      <div class="objective hidden"><small>Задача</small><span></span></div>
+      <div class="shift-timer hidden"></div>
+    </div>
     <div class="toasts"></div>
     <div class="keys-hint ${isTouch ? 'hidden' : ''}"><b>WASD</b> ходить · <b>E</b> действие · <b>Tab</b> планшет · <b>Esc</b> пауза</div>
     <div class="glitch-fx"></div>`;
