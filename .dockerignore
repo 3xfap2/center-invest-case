@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/test-results
+**/playwright-report
+.git
+server/data
+server/bin
+web/public/games/*/
+!web/public/games/mock/
