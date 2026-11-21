@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Мир: предпросмотр</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0d1117; overflow: hidden; font: 13px/1.4 system-ui, sans-serif; color: #e8edf2; }
+      canvas { display: block; width: 100%; height: 100%; }
+      #hud { position: fixed; left: 8px; top: 8px; background: rgba(13, 17, 23, 0.82); padding: 8px 10px; border-radius: 6px; max-width: 360px; }
+      #hud a, #hud button { color: #9fd0ff; background: #1b2430; border: 1px solid #2c3a4a; border-radius: 4px; margin: 2px; padding: 3px 6px; font: inherit; cursor: pointer; text-decoration: none; display: inline-block; }
+      #stats { font-family: ui-monospace, monospace; white-space: pre; margin-top: 6px; }
+      body.shot #hud { display: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="hud">
+      <div>
+        <a href="?scene=office">Офис</a><a href="?scene=station">Станция</a><a href="?scene=diagnostic">Диагностика</a>
+      </div>
+      <div id="cams"></div>
+      <div id="actions"></div>
+      <div id="stats"></div>
+    </div>
+    <script type="module" src="./world.js"></script>
+  </body>
+</html>
