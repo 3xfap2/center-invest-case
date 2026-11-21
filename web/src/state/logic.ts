@@ -19,6 +19,8 @@ const PlayerSchema = z.object({
   token: z.string().max(200).nullable(),
   /** The player protected the nickname with a password (optional), so it works on any device. */
   hasPassword: z.boolean().default(false),
+  /** The secret login key the server made for this player («K7MX-2QPA-9RTD»), kept so the player can see it again here. */
+  key: z.string().max(20).nullable().default(null),
 });
 export type Player = z.infer<typeof PlayerSchema>;
 
@@ -65,13 +67,18 @@ export function setPlayer(s: SavedState, nickname: string, difficulty: Difficult
   const old = s.player;
   // A new nickname means a new player on the server, so the old token (and account) is dropped.
   const same = !!old && old.nickname === nick;
-  return { ...s, player: { id: old?.id ?? newId(), nickname: nick, difficulty, token: same ? old.token : null, hasPassword: same ? old.hasPassword : false } };
+  return {
+    ...s,
+    player: { id: old?.id ?? newId(), nickname: nick, difficulty, token: same ? old.token : null, hasPassword: same ? old.hasPassword : false, key: same ? old.key : null },
+  };
 }
 
 /** After a login: this device now belongs to that account. */
-export function loginAs(s: SavedState, nickname: string, token: string, newId: () => string, hasPassword = true): SavedState {
-  return { ...s, player: { id: s.player?.id ?? newId(), nickname, difficulty: s.player?.difficulty ?? 'normal', token, hasPassword } };
+export function loginAs(s: SavedState, nickname: string, token: string, newId: () => string, hasPassword = true, key: string | null = null): SavedState {
+  return { ...s, player: { id: s.player?.id ?? newId(), nickname, difficulty: s.player?.difficulty ?? 'normal', token, hasPassword, key } };
 }
+
+export const setKey = (s: SavedState, key: string | null): SavedState => (s.player ? { ...s, player: { ...s.player, key } } : s);
 
 export const setHasPassword = (s: SavedState, hasPassword: boolean): SavedState =>
   s.player ? { ...s, player: { ...s.player, hasPassword } } : s;

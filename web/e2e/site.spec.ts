@@ -38,6 +38,7 @@ test('landing: the poster shelf switches the hero, by mouse and keyboard, and le
   await expect(page.getByRole('heading', { level: 1 })).toContainText('GLITCH');
   await expect(page.getByTestId('hero')).toContainText('Завтра релиз');
 
+  await page.getByTestId('game-glitch').focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByTestId('game-kompas')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('game-kompas')).toBeFocused();

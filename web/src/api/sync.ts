@@ -53,10 +53,15 @@ function ensurePlayer(): Promise<string | null> {
 let conflict: string | null = null; // a nickname the server refused this session: don't ask again
 async function createPlayer(nickname: string): Promise<string | null> {
   if (conflict === nickname) return null;
-  const { setToken } = useStore.getState();
+  const { setToken, setKey } = useStore.getState();
   try {
     const r = await api.createPlayer(nickname);
     setToken(r.token);
+    // The player started offline: the key arrives now, so point them to it.
+    if (r.key) {
+      setKey(r.key);
+      useStore.setState({ notice: 'Твой ключ входа готов. Открой «Аккаунт» и запиши его: с ним можно войти на другом устройстве.' });
+    }
     return r.token;
   } catch (e) {
     // The player started offline and someone else registered this nickname meanwhile.
@@ -80,8 +85,9 @@ export const sameNickname = (a: string, b: string) => {
  * «Дальше» on the start screen. A nickname this device already owns just continues.
  * A new one is registered on the server first, so a taken nickname is refused before the game starts.
  * Without the server the player starts locally and is registered later.
+ * 'new': registered just now and the server made a login key: the start screen shows it to write down.
  */
-export async function startAs(nickname: string, difficulty: Difficulty): Promise<'ok' | 'taken' | 'bad'> {
+export async function startAs(nickname: string, difficulty: Difficulty): Promise<'ok' | 'new' | 'taken' | 'bad'> {
   const nick = nickname.trim();
   const s = useStore.getState();
   if (s.player?.token && sameNickname(s.player.nickname, nick)) {
@@ -93,10 +99,13 @@ export async function startAs(nickname: string, difficulty: Difficulty): Promise
     s.setPlayer(nick, difficulty);
     return 'ok';
   }
+  let key: string | null;
   try {
     const r = await api.createPlayer(nick);
     s.setPlayer(r.nickname, difficulty);
     useStore.getState().setToken(r.token);
+    useStore.getState().setKey(r.key ?? null);
+    key = r.key ?? null;
   } catch (e) {
     if (e instanceof ApiError && e.status === 409) return 'taken';
     if (e instanceof ApiError && e.status === 400) return 'bad';
@@ -105,7 +114,7 @@ export async function startAs(nickname: string, difficulty: Difficulty): Promise
   }
   void flushRuns();
   void pushAchievements();
-  return 'ok';
+  return key ? 'new' : 'ok';
 }
 
 /** Runs a call with the player's token. A 401 means the server forgot us: get a new token once and retry. */
@@ -166,23 +175,25 @@ export async function login(nickname: string, password: string): Promise<Account
   }
 }
 
-/** Logs this device in with a one-time code from the player's other device. No password needed. */
-export async function loginWithCode(nickname: string, code: string): Promise<AccountResult> {
+/** Logs this device in with the player's secret login key. Nothing else needed. */
+export async function loginWithKey(key: string): Promise<AccountResult> {
   try {
-    const r = await api.loginCode(nickname.trim(), code.replace(/\s/g, ''));
-    useStore.getState().loginAs(r.nickname, r.token, r.hasPassword);
+    const r = await api.loginKey(key);
+    useStore.getState().loginAs(r.nickname, r.token, r.hasPassword, r.key);
     return await afterLogin(r.token);
   } catch (e) {
     return errorResult(e);
   }
 }
 
-/** On the old device: a 6-digit code to continue on another device (valid 10 minutes, once). */
-export async function requestCode(): Promise<{ code: string; expiresAt: string } | 'offline'> {
+/** A new key for a lost one (from a device that is still signed in). The old key stops working. */
+export async function replaceKey(): Promise<string | 'offline'> {
   if (!online()) return 'offline';
   try {
-    const r = await withToken((t) => api.createTransfer(t));
-    return r ?? 'offline';
+    const r = await withToken((t) => api.newKey(t));
+    if (!r) return 'offline';
+    useStore.getState().setKey(r.key);
+    return r.key;
   } catch {
     return 'offline';
   }

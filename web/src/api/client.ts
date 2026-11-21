@@ -38,7 +38,7 @@ export const api = {
   health: () => call(z.object({ ok: z.literal(true) }), 'GET', '/health', { timeout: 2500 }),
 
   createPlayer: (nickname: string) =>
-    call(z.object({ playerId: z.string(), token: z.string(), nickname: z.string() }), 'POST', '/players', { body: { nickname } }),
+    call(z.object({ playerId: z.string(), token: z.string(), nickname: z.string(), key: z.string().nullish() }), 'POST', '/players', { body: { nickname } }),
 
   putSave: (token: string, gameId: string, data: SaveData | null, flags: Record<string, FlagValue>) =>
     call(z.object({ updatedAt: z.string() }), 'PUT', `/saves/${encodeURIComponent(gameId)}`, { token, body: { data, flags } }),
@@ -58,13 +58,15 @@ export const api = {
   login: (nickname: string, password: string) =>
     call(z.object({ playerId: z.string(), token: z.string(), nickname: z.string() }), 'POST', '/login', { body: { nickname, password } }),
 
-  createTransfer: (token: string) =>
-    call(z.object({ code: z.string(), expiresAt: z.string(), nickname: z.string() }), 'POST', '/players/me/transfer', { token }),
+  loginKey: (key: string) =>
+    call(
+      z.object({ playerId: z.string(), token: z.string(), nickname: z.string(), hasPassword: z.boolean(), key: z.string() }),
+      'POST',
+      '/login/key',
+      { body: { key } },
+    ),
 
-  loginCode: (nickname: string, code: string) =>
-    call(z.object({ playerId: z.string(), token: z.string(), nickname: z.string(), hasPassword: z.boolean() }), 'POST', '/login/code', {
-      body: { nickname, code },
-    }),
+  newKey: (token: string) => call(z.object({ key: z.string() }), 'POST', '/players/me/key', { token }),
 
   logout: (token: string) => call(z.null(), 'POST', '/logout', { token }),
 

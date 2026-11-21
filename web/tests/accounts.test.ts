@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { login, logout, protect, startAs, useSync } from '../src/api/sync';
+import { login, loginWithKey, logout, protect, replaceKey, startAs, useSync } from '../src/api/sync';
 import * as L from '../src/state/logic';
 import { useStore } from '../src/state/store';
 
@@ -17,7 +17,7 @@ describe('account logic', () => {
 
   it('loginAs keeps this device id and difficulty', () => {
     const s = L.loginAs(L.setPlayer(L.emptyState(), 'гость', 'hard', id), 'Аня', 'tok', () => 'x');
-    expect(s.player).toEqual({ id: 'p-1', nickname: 'Аня', difficulty: 'hard', token: 'tok', hasPassword: true });
+    expect(s.player).toEqual({ id: 'p-1', nickname: 'Аня', difficulty: 'hard', token: 'tok', hasPassword: true, key: null });
   });
 
   it('old saves without hasPassword still load', () => {
@@ -145,5 +145,56 @@ describe('unique nicknames: startAs', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('down'))));
     expect(await startAs('Аня', 'normal')).toBe('ok');
     expect(useStore.getState().player).toMatchObject({ nickname: 'Аня', token: null });
+  });
+});
+
+describe('secret login key', () => {
+  beforeEach(() => {
+    useStore.setState({ ...L.emptyState() });
+    useSync.setState({ status: 'online', lastSaved: null });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('registration returns a key; the start screen shows it and the device keeps it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(201, { playerId: 's1', token: 'tok', nickname: 'Аня', key: 'K7MX-2QPA-9RTD' })));
+    expect(await startAs('Аня', 'normal')).toBe('new');
+    expect(useStore.getState().player).toMatchObject({ nickname: 'Аня', key: 'K7MX-2QPA-9RTD' });
+  });
+
+  it('the key keeps through a nickname-only restart, but not to a new nickname', () => {
+    let s = L.setPlayer(L.emptyState(), 'Аня', 'easy', id);
+    s = L.setKey(s, 'K7MX-2QPA-9RTD');
+    expect(L.setPlayer(s, 'Аня', 'hard', id).player?.key).toBe('K7MX-2QPA-9RTD');
+    expect(L.setPlayer(s, 'Боря', 'hard', id).player?.key).toBeNull();
+  });
+
+  it('signing in with only the key brings the account here', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.endsWith('/login/key')) return json(200, { playerId: 's1', token: 'tok2', nickname: 'Аня', hasPassword: false, key: 'K7MX-2QPA-9RTD' });
+        if (url.endsWith('/saves')) return json(200, { glitch: { data: { v: 1, room: 9 }, flags: {}, updatedAt: '2026-11-21T10:00:00Z' } });
+        if (url.endsWith('/achievements/me')) return json(200, []);
+        return json(404, {});
+      }),
+    );
+    expect(await loginWithKey('k7mx 2qpa 9rtd')).toBe('ok');
+    expect(useStore.getState().player).toMatchObject({ nickname: 'Аня', token: 'tok2', hasPassword: false, key: 'K7MX-2QPA-9RTD' });
+    expect(useStore.getState().games.glitch.data).toEqual({ v: 1, room: 9 });
+  });
+
+  it('a wrong key is reported and nothing changes', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(401, { error: { code: 'bad_key', message: '' } })));
+    expect(await loginWithKey('2222-3333-4444')).toBe('bad');
+    expect(useStore.getState().player).toBeNull();
+  });
+
+  it('a lost key is replaced', async () => {
+    useStore.getState().setPlayer('Аня', 'easy');
+    useStore.getState().setToken('tok');
+    useStore.getState().setKey('OLD0-OLD0-OLD0');
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, { key: 'NEW2-NEW2-NEW2' })));
+    expect(await replaceKey()).toBe('NEW2-NEW2-NEW2');
+    expect(useStore.getState().player?.key).toBe('NEW2-NEW2-NEW2');
   });
 });

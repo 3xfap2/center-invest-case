@@ -6,6 +6,7 @@ import { gameById } from '../games/catalog';
 import { navigate } from '../router';
 import { isNickname } from '../state/logic';
 import { useStore } from '../state/store';
+import { KeyCard } from './KeyCard';
 import { DIFFICULTY, Link, Logo } from './parts';
 
 /** The first character the server would refuse, or null. Same rule as NICKNAME in logic.ts. */
@@ -76,6 +77,7 @@ export function Start({ game }: { game: string | null }) {
   const [touched, setTouched] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [revealed, setRevealed] = useState<string | null>(null);
   const localError = nicknameError(nickname);
   const [check, setCheck] = useNicknameCheck(nickname, localError);
   const error = localError ?? serverError;
@@ -90,6 +92,7 @@ export function Start({ game }: { game: string | null }) {
     const r = await startAs(nickname, difficulty);
     setBusy(false);
     if (r === 'ok') return navigate(target);
+    if (r === 'new') return setRevealed(useStore.getState().player?.key ?? null);
     if (r === 'taken') setCheck('taken');
     else setServerError('Сервер не принял этот ник. Попробуй другой.');
   }
@@ -103,6 +106,21 @@ export function Start({ game }: { game: string | null }) {
         </Link>
       </header>
       <div className="pn-wrap" style={{ position: 'relative', zIndex: 2 }}>
+        {revealed ? (
+          <section className="pn-start pn-screen" style={{ gap: 28 }} data-testid="key-reveal">
+            <p className="pn-label pn-label--acc">Ник «{nickname.trim()}» теперь твой</p>
+            <h1 className="pn-h1">Запиши ключ входа</h1>
+            <p className="pn-hint" style={{ fontSize: 18, maxWidth: '56ch' }}>
+              С этим ключом ты войдёшь на любом другом компьютере или телефоне и продолжишь с того же места. Здесь, в этом браузере, ключ не нужен: ты входишь сам. Ключ всегда можно посмотреть в «Аккаунт».
+            </p>
+            <KeyCard value={revealed} />
+            <div>
+              <button type="button" className="pn-btn pn-btn--accent pn-btn--lg" onClick={() => navigate(target)} autoFocus>
+                Я записал, играть <span className="pn-arrow" aria-hidden="true">→</span>
+              </button>
+            </div>
+          </section>
+        ) : (
         <form className="pn-start" onSubmit={submit} noValidate>
           <section className={`pn-field ${showError ? 'is-error' : ''}`}>
             <p className="pn-label pn-label--acc">Шаг 1 из 2</p>
@@ -184,6 +202,7 @@ export function Start({ game }: { game: string | null }) {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );
