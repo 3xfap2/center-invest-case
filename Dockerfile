@@ -7,8 +7,11 @@ WORKDIR /repo
 COPY games ./games
 COPY web ./web
 # Each game's build writes into web/public/games/<id>/ (docs/GAME_CONTRACT.md).
+# A game whose finished build is already committed is used as is; only games without one are built here.
 RUN for d in games/*/; do \
-      if [ -f "$d/package.json" ]; then echo "building $d" && (cd "$d" && npm ci && npm run build) || exit 1; fi; \
+      id=$(basename "$d"); \
+      if [ -f "web/public/games/$id/index.html" ]; then echo "using committed build of $id"; \
+      elif [ -f "$d/package.json" ]; then echo "building $id" && (cd "$d" && npm ci && npm run build) || exit 1; fi; \
     done
 RUN cd web && npm ci && npm run build
 
