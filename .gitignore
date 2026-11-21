@@ -1,0 +1,31 @@
+# Dependencies and builds
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Built games are produced by each game's build script (keep the folder)
+web/public/games/*/
+!web/public/games/.gitkeep
+
+# Secrets and local settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+npm-debug.log*
