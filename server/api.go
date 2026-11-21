@@ -9,8 +9,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
+	"math/big"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -48,6 +51,8 @@ func NewHandler(cfg Config, store *Store, log *slog.Logger) http.Handler {
 	api.HandleFunc("GET /api/v1/players/check", a.checkNickname)
 	api.HandleFunc("POST /api/v1/players/me/password", a.auth(a.setPassword))
 	api.HandleFunc("POST /api/v1/login", a.login)
+	api.HandleFunc("POST /api/v1/players/me/transfer", a.auth(a.createTransfer))
+	api.HandleFunc("POST /api/v1/login/code", a.loginWithCode)
 	api.HandleFunc("POST /api/v1/logout", a.auth(a.logout))
 	api.HandleFunc("GET /api/v1/saves", a.auth(a.allSaves))
 	api.HandleFunc("POST /api/v1/achievements", a.auth(a.addAchievements))
@@ -142,7 +147,7 @@ func (a *API) limit(next http.Handler) http.Handler {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 			kind = "read"
 		}
-		if r.URL.Path == "/api/v1/login" {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/login") {
 			kind = "login" // its own, smaller budget against password guessing
 		}
 		if ok, wait := a.limiter.Allow(clientIP(r, a.cfg.TrustProxy), kind); !ok {
@@ -339,6 +344,77 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"playerId": id, "token": token, "nickname": nick, "hasPassword": true})
+}
+
+// ---- moving to another device without a password ----
+
+const transferTTL = 10 * time.Minute
+
+var codeRe = regexp.MustCompile(`^[0-9]{6}$`)
+
+// createTransfer makes a one-time 6-digit code: valid 10 minutes, once, at most 5 wrong tries.
+func (a *API) createTransfer(w http.ResponseWriter, r *http.Request, p Player) {
+	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
+	if err != nil {
+		a.internal(w, "transfer code", err)
+		return
+	}
+	code := fmt.Sprintf("%06d", n.Int64())
+	expires := time.Now().UTC().Add(transferTTL).Format(time.RFC3339)
+	if err := a.store.SetTransferCode(r.Context(), p.ID, hashToken(code), expires); err != nil {
+		a.internal(w, "set transfer code", err)
+		return
+	}
+	writeJSON(w, 201, map[string]string{"code": code, "expiresAt": expires, "nickname": p.Nickname})
+}
+
+func (a *API) loginWithCode(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Nickname string `json:"nickname"`
+		Code     string `json:"code"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	bad := func() { fail(w, 401, "bad_code", "Неверный ник или код") }
+	code := strings.ReplaceAll(in.Code, " ", "")
+	if !codeRe.MatchString(code) || len(in.Nickname) > 80 {
+		bad()
+		return
+	}
+	t, err := a.store.TransferByLogin(r.Context(), loginKey(in.Nickname))
+	if errors.Is(err, errNotFound) {
+		bad()
+		return
+	}
+	if err != nil {
+		a.internal(w, "transfer lookup", err)
+		return
+	}
+	if t.ExpiresAt <= time.Now().UTC().Format(time.RFC3339) {
+		_ = a.store.DeleteTransfer(r.Context(), t.PlayerID)
+		bad()
+		return
+	}
+	if subtle.ConstantTimeCompare(t.CodeHash, hashToken(code)) != 1 {
+		if err := a.store.FailTransfer(r.Context(), t.PlayerID); err != nil {
+			a.internal(w, "transfer fail", err)
+			return
+		}
+		bad()
+		return
+	}
+	// One use only.
+	if err := a.store.DeleteTransfer(r.Context(), t.PlayerID); err != nil {
+		a.internal(w, "transfer use", err)
+		return
+	}
+	token := randomString(32)
+	if err := a.store.AddSession(r.Context(), t.PlayerID, hashToken(token)); err != nil {
+		a.internal(w, "add session", err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"playerId": t.PlayerID, "token": token, "nickname": t.Nickname, "hasPassword": t.HasPassword})
 }
 
 func (a *API) logout(w http.ResponseWriter, r *http.Request, p Player) {

@@ -70,3 +70,12 @@ Playing never needs a password: a nickname is enough. A player **may** later pro
 - **Coming back on the same device** needs nothing: the browser keeps the session token after the browser is closed or the computer is turned off.
 - **Another device:** the nickname alone isn't enough (otherwise anyone could play as anyone); the player logs in with the optional password.
 - Upgrading an older database: duplicate nicknames are renamed (the password account, then the oldest player, keeps the nickname; others get «-2», «-3»…).
+
+## Another device without a password (v1.3)
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| POST | `/api/v1/players/me/transfer` | Bearer | `201 { "code": "482913", "expiresAt", "nickname" }`: a one-time 6-digit code; a new code replaces the old one |
+| POST | `/api/v1/login/code` | `{ "nickname", "code" }` (spaces in the code are ignored) | `200 { "playerId", "token", "nickname", "hasPassword" }`; `401 bad_code` |
+
+The code works **once**, for **10 minutes**, and is deleted after **5 wrong tries**. Only its SHA-256 hash is stored. It shares the login rate limit (10 attempts per IP per minute) with password login.

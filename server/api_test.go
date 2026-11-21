@@ -13,8 +13,9 @@ import (
 )
 
 type testEnv struct {
-	t   *testing.T
-	srv *httptest.Server
+	t     *testing.T
+	srv   *httptest.Server
+	store *Store
 }
 
 func newEnv(t *testing.T, cfg Config) *testEnv {
@@ -33,7 +34,7 @@ func newEnv(t *testing.T, cfg Config) *testEnv {
 	cfg.Version = "test"
 	srv := httptest.NewServer(NewHandler(cfg, store, slog.New(slog.NewTextHandler(io.Discard, nil))))
 	t.Cleanup(srv.Close)
-	return &testEnv{t: t, srv: srv}
+	return &testEnv{t: t, srv: srv, store: store}
 }
 
 // do sends a request and decodes a JSON response into a generic value.

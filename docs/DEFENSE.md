@@ -107,3 +107,9 @@ Browser ──► Go server :8080
 - **The nickname is the identity, and it's unique.** The database refuses a nickname that already exists (case-insensitive, «ё» = «е»), and the start screen shows «свободен» / «занят» while typing.
 - **Coming back is automatic on the same device:** the browser keeps a random session token, so closing the browser or turning off the computer doesn't lose the player.
 - **Why not "type the nickname on any computer and you're in"?** Then any classmate could type your nickname and play as you. For another device there's the optional password; without it, the nickname only works where it was created.
+
+### "How does a player continue on another device?"
+- **Without a password:** on the old device, «Аккаунт» → «Войти на другом устройстве» gives a 6-digit code (and a link). On the new device: nickname + code. Like logging in to a messenger on a new phone.
+- **Why it's safe:** the code works once, for 10 minutes, and dies after 5 wrong tries; logins are limited to 10 per IP per minute. A guess succeeds with a chance of about 5 in 1 000 000 per code. Only the code's hash is stored.
+- **With a password (optional):** nickname + password, any time.
+- **Both devices stay logged in** (one session per device); logging out on one doesn't affect the other.
