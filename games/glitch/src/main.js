@@ -14,6 +14,8 @@ import { createOffice } from './world/office.js';
 import { createStation } from './world/station.js';
 import { createChapter1, DEBUG_PRESETS, applyPreset } from './game/chapter1.js';
 import { ENDINGS } from './content/meta.js';
+import { createIntro } from './world/intro.js';
+import { playIntro } from './game/introCutscene.js';
 import career from './content/career.json';
 
 const canvas = document.getElementById('view');
@@ -24,7 +26,7 @@ const DEBUG = new URLSearchParams(location.search).get('debug') === '1';
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.25 : 1.75));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 90);
+const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 300); // дальность 300 м: небо станции висит в 100 м, звёзды в 120 м
 camera.rotation.order = 'YXZ';
 
 function resize() {
@@ -212,12 +214,40 @@ function stopChapter() {
   world = null;
 }
 
+// Номер текущего «потока» запуска: меню отладки или выход прерывают ролик, и старый поток не должен запускать главу.
+let flowId = 0;
+let introRun = null;
+
+// Вступительный ролик о герое (только для новой игры). Возвращает false, если его прервали извне.
+async function runIntro() {
+  const my = flowId;
+  const intro = createIntro();
+  world = intro;
+  sceneName = 'intro';
+  intro.scene.add(camera);
+  interactor.setSlots([]);
+  ctx.cutscene = true;
+  setAmbience(null);
+  introRun = playIntro({ intro, camera, root: uiRoot, name: game.state.name, fade: () => screens.fadeOut() });
+  await introRun.done;
+  introRun = null;
+  if (my !== flowId) return false;
+  ctx.cutscene = false;
+  world = null;
+  disposeWorld(intro);
+  return true;
+}
+
 async function showStart() {
+  flowId += 1;
+  const my = flowId;
+  introRun?.skip();
   stopChapter();
   blockers.clear();
   block('menu', true);
   const load = screens.loading();
   load.setProgress(1);
+  let fresh = false;
   for (;;) {
     const a = await load.askStart({ canContinue: !!session.save, name: session.nickname });
     if (a === 'continue') {
@@ -225,10 +255,19 @@ async function showStart() {
     } else {
       clearLocalSave();
       newGame(session.nickname, session.difficulty);
+      fresh = true;
     }
     break;
   }
+  if (my !== flowId) return; // пока ждали кнопку, игру запустили из меню отладки
   screens.close();
+  // Ролик о герое только при новой игре (при «Продолжить» его уже видели).
+  if (fresh && !game.state.flags.intro_seen) {
+    unlockAudio();
+    const ok = await runIntro();
+    if (!ok || my !== flowId) return; // ролик прервали меню отладки или выход
+    game.state.flags.intro_seen = true;
+  }
   await startChapter();
 }
 
@@ -353,6 +392,8 @@ async function boot() {
 
 // ---------- Меню отладки (?debug=1) ----------
 function debugNewState(preset) {
+  flowId += 1;
+  introRun?.skip();
   stopChapter();
   screens.close();
   blockers.clear();

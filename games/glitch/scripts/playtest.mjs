@@ -84,6 +84,8 @@ try {
   check('загрузка до кнопки старта не дольше 5 с', loadMs <= 5000, `${loadMs} мс`);
   await shot('loading');
   await page.getByText('Начать смену').click();
+  // вступительный ролик пропускаем (его проверяет отдельный тест)
+  await page.locator('.cut-skip').click({ timeout: 5000 }).catch(() => {});
   await page.waitForFunction(() => window.__glitch?.game.state, null, { timeout: 15000 });
   await ev((d) => (window.__glitch.game.state.difficulty = d), difficulty);
   await page.waitForFunction(() => window.__glitch?.ctx.world, null, { timeout: 15000 });

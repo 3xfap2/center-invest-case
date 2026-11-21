@@ -1061,3 +1061,54 @@ button {
     padding: 6px 10px;
   }
 }
+
+/* ---------- Вступительный ролик ---------- */
+.cutscene {
+  position: absolute;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+}
+.cut-sub {
+  position: absolute;
+  left: 50%;
+  bottom: calc(9vh + 18px);
+  transform: translateX(-50%);
+  width: min(820px, calc(100vw - 40px));
+  text-align: center;
+  font-size: clamp(16px, 2.3vw, 23px);
+  line-height: 1.4;
+  font-weight: 600;
+  color: #f4f1e8;
+  text-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.9),
+    0 0 2px #000;
+  opacity: 0;
+}
+.cut-sub.show {
+  animation: sub-in 0.5s ease-out forwards;
+}
+@keyframes sub-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.cut-skip {
+  position: absolute;
+  top: calc(9vh / 2 - 17px);
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 2;
+  pointer-events: auto;
+  min-height: 34px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(20, 24, 32, 0.8);
+  color: #e6e9ee;
+  font-size: 14px;
+}

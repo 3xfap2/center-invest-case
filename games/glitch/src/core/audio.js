@@ -156,3 +156,77 @@ export function setAmbience(kind) {
   g.gain.setTargetAtTime(kind === 'office' ? 0.025 : 0.04, ctx.currentTime, 1.5);
   hum = { g, oscs };
 }
+
+// Спокойная музыка для вступительного ролика: аккорды, бас и тихое арпеджио с эхом.
+// Возвращает функцию остановки (плавное затухание). Громкость подчиняется общему выключателю звука.
+export function playIntroMusic() {
+  if (!ctx) return () => {};
+  const now = ctx.currentTime;
+  const out = ctx.createGain();
+  out.gain.setValueAtTime(0.0001, now);
+  out.gain.exponentialRampToValueAtTime(0.55, now + 2.5);
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 2200;
+  const delay = ctx.createDelay(1);
+  delay.delayTime.value = 0.38;
+  const fb = ctx.createGain();
+  fb.gain.value = 0.3;
+  delay.connect(fb).connect(delay);
+  lp.connect(out);
+  lp.connect(delay);
+  delay.connect(out);
+  out.connect(master);
+
+  const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  // Am, F, C, G: спокойная, чуть грустная последовательность
+  const chords = [
+    [57, 60, 64],
+    [53, 57, 60],
+    [48, 52, 55],
+    [55, 59, 62],
+  ];
+  const bar = 3.6;
+  const oscs = [];
+  const voice = (type, freq, t, dur, peak, attack) => {
+    const o = ctx.createOscillator();
+    o.type = type;
+    o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(peak, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(lp);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+    oscs.push(o);
+  };
+  const t0 = now + 0.1;
+  for (let b = 0; b < 10; b++) {
+    const ch = chords[b % 4];
+    const tb = t0 + b * bar;
+    ch.forEach((m) => voice('triangle', hz(m), tb, bar + 0.8, 0.035, 1.2)); // мягкий аккорд
+    voice('sine', hz(ch[0] - 12), tb, bar, 0.07, 0.3); // бас
+    const arp = [ch[0] + 12, ch[1] + 12, ch[2] + 12, ch[1] + 12, ch[2] + 12, ch[0] + 24];
+    arp.forEach((m, i) => voice('sine', hz(m), tb + i * (bar / 6), 0.9, 0.03, 0.02)); // арпеджио
+  }
+
+  let stopped = false;
+  return function stop() {
+    if (stopped) return;
+    stopped = true;
+    const t = ctx.currentTime;
+    out.gain.cancelScheduledValues(t);
+    out.gain.setTargetAtTime(0.0001, t, 0.35);
+    setTimeout(() => {
+      oscs.forEach((o) => {
+        try {
+          o.stop();
+        } catch {
+          /* уже остановлен */
+        }
+      });
+      out.disconnect();
+    }, 1800);
+  };
+}
