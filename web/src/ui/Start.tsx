@@ -113,7 +113,11 @@ export function Start({ game }: { game: string | null }) {
           </fieldset>
 
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px 24px', flexWrap: 'wrap', paddingTop: 28, borderTop: '1px solid var(--pn-line)' }}>
-            <p className="pn-hint">Ник и сложность можно сменить перед любой игрой.</p>
+            <p className="pn-hint">
+              Ник и сложность можно сменить перед любой игрой.
+              <br />
+              Уже играл на другом устройстве? <Link to="/account">Войти</Link>
+            </p>
             <button type="submit" className="pn-btn pn-btn--accent pn-btn--lg pn-btn--block-sm">
               Дальше <span className="pn-arrow" aria-hidden="true">→</span>
             </button>

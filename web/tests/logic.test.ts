@@ -14,7 +14,7 @@ describe('save logic', () => {
     let s = L.setPlayer(L.emptyState(), 'Аня', 'easy', id);
     s = L.setToken(s, 'tok');
     s = L.setPlayer(s, 'Аня', 'hard', () => 'other');
-    expect(s.player).toEqual({ id: 'p-1', nickname: 'Аня', difficulty: 'hard', token: 'tok' });
+    expect(s.player).toEqual({ id: 'p-1', nickname: 'Аня', difficulty: 'hard', token: 'tok', hasPassword: false });
   });
 
   it('drops the server token when the nickname changes', () => {

@@ -3,6 +3,7 @@ import { publicGames, type Game } from '../games/catalog';
 import { isDev, navigate } from '../router';
 import { useStore } from '../state/store';
 import { useUi } from '../state/ui';
+import { AchievementBoard } from './AchievementBoard';
 import { Scene } from './Scene';
 import { GameTitle, Logo, PlayIcon } from './parts';
 
@@ -201,6 +202,9 @@ export function Landing() {
               </li>
             </ul>
           </section>
+        </div>
+        <div style={{ paddingBottom: 96 }}>
+          <AchievementBoard />
         </div>
         <footer className="pn-footer">
           <span>ПрофНавигатор · кейс банка «Центр-инвест» «ПрофНавигатор: выбери профессию будущего»</span>

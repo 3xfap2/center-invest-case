@@ -62,8 +62,21 @@ export function TopBar({ right }: { right?: ReactNode }) {
   return (
     <header className="pn-topbar pn-wrap" style={{ position: 'relative', zIndex: 3 }}>
       <Logo />
-      {right ?? <PlayerChip />}
+      {right ?? <AccountNav />}
     </header>
+  );
+}
+
+/** Top-right corner: the optional account link and the player chip. */
+function AccountNav() {
+  const player = useStore((s) => s.player);
+  return (
+    <nav className="pn-nav" aria-label="Игрок">
+      <Link to="/account" className="pn-nav-link" data-testid="account-link">
+        {player?.hasPassword ? 'Аккаунт' : player ? 'Сохранить прогресс' : 'Войти'}
+      </Link>
+      <PlayerChip />
+    </nav>
   );
 }
 

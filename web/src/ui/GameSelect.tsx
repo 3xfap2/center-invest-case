@@ -2,12 +2,16 @@ import { publicGames } from '../games/catalog';
 import { isDev, navigate } from '../router';
 import { useStore } from '../state/store';
 import { Scene } from './Scene';
-import { GameTitle, PlayIcon, TopBar } from './parts';
+import { useSync } from '../api/sync';
+import { AchievementBoard } from './AchievementBoard';
+import { GameTitle, Link, PlayIcon, TopBar } from './parts';
 
 export function GameSelect() {
   const games = publicGames(isDev());
   const saves = useStore((s) => s.games);
   const resetGame = useStore((s) => s.resetGame);
+  const hasPassword = useStore((s) => s.player?.hasPassword ?? false);
+  const online = useSync((s) => s.status === 'online');
 
   return (
     <div className="pn-screen" style={{ position: 'relative' }}>
@@ -26,6 +30,14 @@ export function GameSelect() {
           </p>
         </div>
 
+        {!hasPassword && online && (
+          <div className="pn-empty-note" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px 24px', flexWrap: 'wrap', marginBottom: 28 }} data-testid="protect-nudge">
+            <span>Прогресс привязан к этому браузеру. Защити ник паролем, чтобы играть с любого устройства.</span>
+            <Link to="/account" className="pn-btn pn-btn--ghost pn-btn--sm">
+              Защитить
+            </Link>
+          </div>
+        )}
         <div className="pn-select-grid">
           {games.map((g) => {
             const save = saves[g.id];
@@ -106,6 +118,9 @@ export function GameSelect() {
               </article>
             );
           })}
+        </div>
+        <div style={{ marginTop: 56 }}>
+          <AchievementBoard />
         </div>
       </main>
     </div>

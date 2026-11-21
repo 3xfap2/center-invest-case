@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { allAchievements } from '../state/logic';
 import { useStore } from '../state/store';
 import { ApiError, api } from './client';
 
@@ -29,6 +30,7 @@ export function connect(): Promise<void> {
     useSync.setState({ status: 'online' });
     await ensurePlayer();
     await flushRuns();
+    await pushAchievements();
   })().finally(() => {
     connecting = null;
   });
@@ -68,12 +70,86 @@ async function withToken<T>(f: (token: string) => Promise<T>): Promise<T | null>
     return await f(token);
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
-      useStore.getState().setToken(null);
+      const s = useStore.getState();
+      if (s.player?.hasPassword) {
+        // An account's session ended (for example after a server reset). Don't create a stranger with the same nickname.
+        s.setToken(null);
+        s.setHasPassword(false);
+        useStore.setState({ notice: 'Вход в аккаунт устарел. Войди снова, чтобы прогресс сохранялся на сервере.' });
+        return null;
+      }
+      s.setToken(null);
       token = await ensurePlayer();
       if (token) return f(token);
     }
     throw e;
   }
+}
+
+// ---- achievements ----
+
+let achTimer: ReturnType<typeof setTimeout> | undefined;
+/** Called when a game grants an achievement. Sends all of them a moment later (the server ignores repeats). */
+export function queueAchievements() {
+  clearTimeout(achTimer);
+  achTimer = setTimeout(() => void pushAchievements(), SAVE_DEBOUNCE_MS);
+}
+
+export async function pushAchievements() {
+  if (!online()) return;
+  const items = allAchievements(useStore.getState()).slice(0, 200);
+  if (items.length === 0) return;
+  await withToken((t) => api.postAchievements(t, items)).catch(() => undefined);
+}
+
+// ---- optional accounts ----
+
+export type AccountResult = 'ok' | 'bad' | 'taken' | 'limited' | 'offline';
+
+const errorResult = (e: unknown): AccountResult =>
+  e instanceof ApiError ? (e.status === 401 ? 'bad' : e.status === 409 ? 'taken' : e.status === 429 ? 'limited' : e.status === 400 ? 'bad' : 'offline') : 'offline';
+
+/** Logs this device into an account and brings its saves and achievements here. */
+export async function login(nickname: string, password: string): Promise<AccountResult> {
+  let token: string;
+  try {
+    const r = await api.login(nickname.trim(), password);
+    useStore.getState().loginAs(r.nickname, r.token);
+    token = r.token;
+  } catch (e) {
+    return errorResult(e);
+  }
+  useSync.setState({ status: 'online' });
+  try {
+    const [saves, achievements] = await Promise.all([api.allSaves(token), api.myAchievements(token)]);
+    useStore.getState().mergeServer(saves, achievements);
+  } catch {
+    // Logged in, but the progress couldn't be loaded now; local progress stays.
+  }
+  await pushAchievements();
+  for (const gameId of Object.keys(useStore.getState().games)) queueSave(gameId);
+  return 'ok';
+}
+
+/** Protects the current nickname with a password, so it opens on any device. */
+export async function protect(password: string): Promise<AccountResult> {
+  if (!online()) return 'offline';
+  try {
+    const r = await withToken((t) => api.setPassword(t, password));
+    if (!r) return 'offline';
+    useStore.getState().setHasPassword(true);
+    return 'ok';
+  } catch (e) {
+    return errorResult(e);
+  }
+}
+
+/** Ends this device's session and clears its local progress. The account and its saves stay on the server. */
+export async function logout() {
+  const token = useStore.getState().player?.token;
+  if (token) await api.logout(token).catch(() => undefined);
+  useStore.getState().logout();
+  useSync.setState({ lastSaved: null });
 }
 
 /** Called after every local save. */

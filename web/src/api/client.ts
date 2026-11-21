@@ -48,6 +48,30 @@ export const api = {
     run: { gameId: string; ending: string; stars: number; score: number; durationSec: number; difficulty: Difficulty; choices: unknown[] },
   ) => call(z.object({ runId: z.union([z.string(), z.number()]) }), 'POST', '/runs', { token, body: run }),
 
+  // Optional accounts: playing never needs them.
+  setPassword: (token: string, password: string) =>
+    call(z.object({ hasPassword: z.literal(true) }), 'POST', '/players/me/password', { token, body: { password } }),
+
+  login: (nickname: string, password: string) =>
+    call(z.object({ playerId: z.string(), token: z.string(), nickname: z.string() }), 'POST', '/login', { body: { nickname, password } }),
+
+  logout: (token: string) => call(z.null(), 'POST', '/logout', { token }),
+
+  allSaves: (token: string) =>
+    call(z.record(z.string(), z.object({ data: z.unknown(), flags: z.unknown(), updatedAt: z.string() })), 'GET', '/saves', { token }),
+
+  postAchievements: (token: string, items: { gameId: string; id: string }[]) =>
+    call(z.object({ added: z.number() }), 'POST', '/achievements', { token, body: { items } }),
+
+  myAchievements: (token: string) => call(z.array(z.object({ gameId: z.string(), id: z.string() })), 'GET', '/achievements/me', { token }),
+
+  achievementBoard: (limit = 10) =>
+    call(
+      z.array(z.object({ nickname: z.string(), achievements: z.number(), games: z.number(), lastAt: z.string() })),
+      'GET',
+      `/leaderboard/achievements?limit=${limit}`,
+    ),
+
   leaderboard: (gameId: string, limit = 10) =>
     call(
       z.array(z.object({ nickname: z.string(), score: z.number(), stars: z.number(), ending: z.string(), durationSec: z.number(), at: z.string() })),
@@ -56,3 +80,5 @@ export const api = {
     ),
 };
 export type LeaderRow = Awaited<ReturnType<typeof api.leaderboard>>[number];
+export type AchievementRow = Awaited<ReturnType<typeof api.achievementBoard>>[number];
+export type ServerSaves = Awaited<ReturnType<typeof api.allSaves>>;

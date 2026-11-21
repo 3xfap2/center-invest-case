@@ -17,6 +17,8 @@ const PlayerSchema = z.object({
   difficulty: DifficultySchema,
   /** Bearer token from the server, or null while the player exists only on this device. */
   token: z.string().max(200).nullable(),
+  /** The player protected the nickname with a password (optional), so it works on any device. */
+  hasPassword: z.boolean().default(false),
 });
 export type Player = z.infer<typeof PlayerSchema>;
 
@@ -61,10 +63,46 @@ const withGame = (s: SavedState, id: string, g: Partial<GameSave>, now: number):
 export function setPlayer(s: SavedState, nickname: string, difficulty: Difficulty, newId: () => string): SavedState {
   const nick = nickname.trim();
   const old = s.player;
-  // A new nickname means a new player on the server, so the old token is dropped.
-  const token = old && old.nickname === nick ? old.token : null;
-  return { ...s, player: { id: old?.id ?? newId(), nickname: nick, difficulty, token } };
+  // A new nickname means a new player on the server, so the old token (and account) is dropped.
+  const same = !!old && old.nickname === nick;
+  return { ...s, player: { id: old?.id ?? newId(), nickname: nick, difficulty, token: same ? old.token : null, hasPassword: same ? old.hasPassword : false } };
 }
+
+/** After a login: this device now belongs to that account. */
+export function loginAs(s: SavedState, nickname: string, token: string, newId: () => string): SavedState {
+  return { ...s, player: { id: s.player?.id ?? newId(), nickname, difficulty: s.player?.difficulty ?? 'normal', token, hasPassword: true } };
+}
+
+export const setHasPassword = (s: SavedState, hasPassword: boolean): SavedState =>
+  s.player ? { ...s, player: { ...s.player, hasPassword } } : s;
+
+export interface ServerSave {
+  data: unknown;
+  flags: unknown;
+  updatedAt: string;
+}
+
+/**
+ * Brings the account's progress from the server onto this device after a login.
+ * The server's save wins for each game it has; local games it doesn't know stay.
+ * Flags: newer saves win. Achievements: the union. Anything that fails validation is skipped.
+ */
+export function mergeServer(s: SavedState, saves: Record<string, ServerSave>, achievements: { gameId: string; id: string }[], now: number): SavedState {
+  let out = s;
+  const ordered = Object.entries(saves).sort(([, a], [, b]) => a.updatedAt.localeCompare(b.updatedAt));
+  for (const [gameId, sv] of ordered) {
+    const data = SaveDataSchema.nullable().safeParse(sv.data);
+    if (data.success && data.data) out = applySave(out, gameId, data.data, now);
+    const flags = z.record(FlagKeySchema, FlagValueSchema).safeParse(sv.flags);
+    if (flags.success) out = { ...out, flags: { ...out.flags, ...flags.data } };
+  }
+  for (const a of achievements) out = addAchievement(out, a.gameId, a.id, now);
+  return out;
+}
+
+/** Every achievement on this device, for sending to the server. */
+export const allAchievements = (s: SavedState) =>
+  Object.entries(s.games).flatMap(([gameId, g]) => g.achievements.map((id) => ({ gameId, id })));
 
 export const setToken = (s: SavedState, token: string | null): SavedState =>
   s.player ? { ...s, player: { ...s.player, token } } : s;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { flushRuns, queueSave } from '../api/sync';
+import { flushRuns, queueAchievements, queueSave } from '../api/sync';
 import { gameById } from '../games/catalog';
 import type { Run } from '../state/logic';
 import { useStore } from '../state/store';
@@ -75,6 +75,7 @@ export function useGameHost(
           if (prefix && !msg.id.startsWith(prefix)) return;
           if (s.addAchievement(gameId, msg.id)) {
             earned.push(msg.id);
+            queueAchievements();
             handlers.current.achievement(msg.id);
           }
           break;

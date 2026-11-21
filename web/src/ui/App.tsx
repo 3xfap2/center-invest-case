@@ -4,6 +4,7 @@ import { GREEN, gameById } from '../games/catalog';
 import { navigate, useRoute, type Route } from '../router';
 import { useStore } from '../state/store';
 import { useUi } from '../state/ui';
+import { Account } from './Account';
 import { GameSelect } from './GameSelect';
 import { Landing } from './Landing';
 import { NotFound } from './NotFound';
@@ -94,6 +95,9 @@ export function App() {
       break;
     case 'games':
       page = hasPlayer ? <GameSelect /> : <Redirect to="/start" />;
+      break;
+    case 'account':
+      page = <Account />;
       break;
     case 'play': {
       const game = gameById(route.id);
