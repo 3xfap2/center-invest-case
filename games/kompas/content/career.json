@@ -1,0 +1,25 @@
+{
+  "title": "Педагог-психолог",
+  "description": "Школьный психолог консультирует учеников по вопросам самопознания и выбора профессии. Он также работает с родителями и педагогами.",
+  "skills": [
+    "Наблюдать в разных ситуациях",
+    "Задавать открытые вопросы",
+    "Сопоставлять наблюдения и слова ученика"
+  ],
+  "model": "Пять типов Климова описывают разные рабочие задачи. Это одна из моделей для разговора об интересах.",
+  "study": "ЮФУ, Ростов-на-Дону · 44.03.02 «Психология образования»",
+  "sources": [
+    {
+      "label": "Профстандарт Минтруда № 514н",
+      "href": "https://do.krd.ru/sites/default/files/inline-files/%D0%9F%D0%B5%D0%B4%D0%B0%D0%B3%D0%BE%D0%B3-%D0%BF%D1%81%D0%B8%D1%85%D0%BE%D0%BB%D0%BE%D0%B3.pdf"
+    },
+    {
+      "label": "Методические рекомендации КОИРО",
+      "href": "https://koiro.edu.ru/wp-content/uploads/2021/10/korr_MR-dlya-pedagogov-psihologov-oo-po-ispolzovaniyu-dopolnitelnogo-obrazovaniya-kak-resursa-professionalnoy-orientatsii.pdf"
+    },
+    {
+      "label": "Программа ЮФУ",
+      "href": "https://www.study.sfedu.ru/psychologyofeducation"
+    }
+  ]
+}

@@ -37,3 +37,4 @@ web/src/games.generated.json
 # Finished single-file game builds delivered by the game teams (no build step needed to deploy them)
 !web/public/games/dym/
 !web/public/games/kompas/
+!web/public/games/chuzhoe-imya/
