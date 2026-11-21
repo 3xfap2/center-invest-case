@@ -16,7 +16,28 @@ const (
 	maxFlags        = 200
 )
 
-var knownGames = map[string]bool{"glitch": true, "chuzhoe-imya": true, "mock": true}
+var knownGames = map[string]bool{"glitch": true, "chuzhoe-imya": true, "kompas": true, "dym": true, "mock": true}
+
+// Each game may only grant achievements with its own prefix (docs/GAME_CONTRACT.md).
+var achievementPrefix = map[string]string{"glitch": "gl_", "chuzhoe-imya": "ci_", "kompas": "km_", "dym": "dm_", "mock": "mk_"}
+
+var achievementRe = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
+
+func validAchievement(a Achievement) bool {
+	p, ok := achievementPrefix[a.GameID]
+	return ok && achievementRe.MatchString(a.ID) && strings.HasPrefix(a.ID, p)
+}
+
+// loginKey makes nickname logins case-insensitive: «Аня», «аня» and «АНЯ» are one account; «ё» = «е».
+func loginKey(nickname string) string {
+	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(nickname)), "ё", "е")
+}
+
+// validPassword: 6–64 characters, at most 72 bytes (the bcrypt limit), not only spaces.
+func validPassword(p string) bool {
+	n := utf8.RuneCountInString(p)
+	return n >= 6 && n <= 64 && len(p) <= 72 && strings.TrimSpace(p) != ""
+}
 
 var (
 	nicknameRe = regexp.MustCompile(`^[\p{L}\p{N} _-]{2,20}$`)

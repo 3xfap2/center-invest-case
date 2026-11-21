@@ -44,3 +44,21 @@ One row per player per game: their best run (highest score, then shortest time).
 ## Rate limits
 
 Per IP address, per minute: 60 reads (`GET`) and 20 writes (`POST`, `PUT`). Over the limit → 429 with a `Retry-After` header.
+
+## Optional accounts and achievements (v1.1)
+
+Playing never needs a password: a nickname is enough. A player **may** later protect their progress with a password; the nickname then becomes their login (case-insensitive, «ё» = «е»), so the same progress opens on another device. Each device has its own session token.
+
+| Method | Path | Body / query | Response |
+|---|---|---|---|
+| POST | `/api/v1/players/me/password` | Bearer; `{ "password" }` (6–64 characters) | `200 { "hasPassword": true }`; `409 nickname_taken` if another account has this nickname |
+| POST | `/api/v1/login` | `{ "nickname", "password" }` | `200 { "playerId", "token", "nickname", "hasPassword": true }`; `401 bad_login` (same answer for a wrong nickname or password) |
+| POST | `/api/v1/logout` | Bearer | `204`; ends this device's session only |
+| GET | `/api/v1/saves` | Bearer | `200 { "<gameId>": { "data", "flags", "updatedAt" } }`: all saves, to restore after a login |
+| POST | `/api/v1/achievements` | Bearer; `{ "items": [ { "gameId", "id" } ] }` (1–200; `id` must use the game's prefix) | `200 { "added": n }`; repeats are ignored |
+| GET | `/api/v1/achievements/me` | Bearer | `200 [ { "gameId", "id" } ]` |
+| GET | `/api/v1/leaderboard/achievements` | `?limit=20` (max 50) | `200 [ { "nickname", "achievements", "games", "lastAt" } ]`: players by number of achievements; ties go to whoever got there first; the test game doesn't count |
+
+`GET /api/v1/players/me` also returns `"hasPassword"`. Known games now include `kompas` and `dym`.
+
+**Passwords:** stored only as bcrypt hashes (cost 10). Login has its own rate limit: 10 attempts per IP per minute. A login for a nickname that doesn't exist takes as long as a wrong password, so the timing doesn't reveal which nicknames have accounts.

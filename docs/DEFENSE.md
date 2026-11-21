@@ -91,3 +91,14 @@ Browser ──► Go server :8080
 - `go test -race`: table tests with `httptest` for every endpoint: success, bad input, missing or wrong token, too-large body (413), rate limit (429), one-best-run leaderboard, stats, static files (cache headers, SPA fallback, no directory listing, no path traversal), migrations run twice safely. About 77 % statement coverage.
 - `go vet` and `gofmt` in CI (GitHub Actions) on every pull request, next to the site's unit and Playwright tests.
 - A real end-to-end smoke test: the Docker image, the real site, the mock game, the real API: save → «Сохранено» → end → the player appears in the leaderboard.
+
+### "Saves in the browser are a bad idea." What do we do?
+- The browser copy is only the **offline fallback**. Whenever the server is reachable, every save, finished run and achievement also goes to the server's SQLite database.
+- **Optional password:** after playing, a player can protect their nickname with a password and then log in from any device. Their saves, flags and achievements are restored from the server.
+- **Why optional:** the case requires «без регистрации (можно ник)». A teen starts with a nickname in seconds; the password is an extra they choose, not a gate.
+- **What we store:** nickname, a bcrypt hash of the password (never the password itself), session token hashes (one per device). No email, phone, age or IP.
+- **Attacks we handle:** password guessing (bcrypt + 10 login attempts per IP per minute), finding out which nicknames have accounts (the same answer and the same timing for "no such nickname" and "wrong password"), a stolen database (only hashes), one device logging out the others (separate sessions).
+
+### Achievements leaderboard
+- Games report achievements through the bridge; the site checks the game's prefix and sends them to `POST /api/v1/achievements` (repeats are ignored).
+- `GET /api/v1/leaderboard/achievements` ranks players by the number of achievements across all games; ties go to whoever reached the number first. The test game doesn't count.

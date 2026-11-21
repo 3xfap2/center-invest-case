@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Config struct {
@@ -22,6 +24,7 @@ type Config struct {
 	AllowedOrigin string // dev only: lets a site on another origin call the API
 	TrustProxy    bool
 	Reads, Writes int // per IP per minute
+	Logins        int // login attempts per IP per minute (default 10)
 }
 
 type API struct {
@@ -34,10 +37,21 @@ type API struct {
 // Handler builds the whole server: API routes, static site, and the middleware around them.
 func NewHandler(cfg Config, store *Store, log *slog.Logger) http.Handler {
 	a := &API{cfg: cfg, store: store, limiter: NewLimiter(cfg.Reads, cfg.Writes, time.Minute), log: log}
+	if cfg.Logins <= 0 {
+		cfg.Logins = 10
+	}
+	a.limiter.limits["login"] = cfg.Logins
 	api := http.NewServeMux()
 	api.HandleFunc("GET /api/v1/health", a.health)
 	api.HandleFunc("POST /api/v1/players", a.createPlayer)
 	api.HandleFunc("GET /api/v1/players/me", a.auth(a.me))
+	api.HandleFunc("POST /api/v1/players/me/password", a.auth(a.setPassword))
+	api.HandleFunc("POST /api/v1/login", a.login)
+	api.HandleFunc("POST /api/v1/logout", a.auth(a.logout))
+	api.HandleFunc("GET /api/v1/saves", a.auth(a.allSaves))
+	api.HandleFunc("POST /api/v1/achievements", a.auth(a.addAchievements))
+	api.HandleFunc("GET /api/v1/achievements/me", a.auth(a.myAchievements))
+	api.HandleFunc("GET /api/v1/leaderboard/achievements", a.achievementBoard)
 	api.HandleFunc("GET /api/v1/saves/{gameId}", a.auth(a.getSave))
 	api.HandleFunc("PUT /api/v1/saves/{gameId}", a.auth(a.putSave))
 	api.HandleFunc("POST /api/v1/runs", a.auth(a.createRun))
@@ -126,6 +140,9 @@ func (a *API) limit(next http.Handler) http.Handler {
 		kind := "write"
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 			kind = "read"
+		}
+		if r.URL.Path == "/api/v1/login" {
+			kind = "login" // its own, smaller budget against password guessing
 		}
 		if ok, wait := a.limiter.Allow(clientIP(r, a.cfg.TrustProxy), kind); !ok {
 			w.Header().Set("Retry-After", strconv.Itoa(int(wait.Seconds())+1))
@@ -234,7 +251,157 @@ func randomID() (string, error) {
 }
 
 func (a *API) me(w http.ResponseWriter, _ *http.Request, p Player) {
-	writeJSON(w, 200, map[string]string{"playerId": p.ID, "nickname": p.Nickname, "createdAt": p.CreatedAt})
+	writeJSON(w, 200, map[string]any{"playerId": p.ID, "nickname": p.Nickname, "createdAt": p.CreatedAt, "hasPassword": p.HasPassword})
+}
+
+// ---- optional accounts ----
+// Playing never needs a password. A player may add one later, so the same progress opens on another device.
+
+// A real bcrypt hash of a random string: comparing against it when a nickname doesn't exist
+// takes as long as a real check, so response time doesn't reveal which nicknames have accounts.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("profnav-no-such-account"), bcrypt.DefaultCost)
+
+func (a *API) setPassword(w http.ResponseWriter, r *http.Request, p Player) {
+	var in struct {
+		Password string `json:"password"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if !validPassword(in.Password) {
+		fail(w, 400, "bad_password", "Пароль: от 6 до 64 символов")
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
+	if err != nil {
+		a.internal(w, "hash password", err)
+		return
+	}
+	switch err := a.store.SetPassword(r.Context(), p.ID, loginKey(p.Nickname), string(hash)); {
+	case errors.Is(err, errTaken):
+		fail(w, 409, "nickname_taken", "Этот ник уже защищён паролем другого игрока")
+	case err != nil:
+		a.internal(w, "set password", err)
+	default:
+		writeJSON(w, 200, map[string]bool{"hasPassword": true})
+	}
+}
+
+func (a *API) login(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Nickname string `json:"nickname"`
+		Password string `json:"password"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if len(in.Password) > 72 || len(in.Nickname) > 80 {
+		fail(w, 401, "bad_login", "Неверный ник или пароль")
+		return
+	}
+	id, nick, hash, err := a.store.Login(r.Context(), loginKey(in.Nickname))
+	if err != nil && !errors.Is(err, errNotFound) {
+		a.internal(w, "login", err)
+		return
+	}
+	if errors.Is(err, errNotFound) {
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(in.Password))
+		fail(w, 401, "bad_login", "Неверный ник или пароль")
+		return
+	}
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(in.Password)) != nil {
+		fail(w, 401, "bad_login", "Неверный ник или пароль")
+		return
+	}
+	token := randomString(32)
+	if err := a.store.AddSession(r.Context(), id, hashToken(token)); err != nil {
+		a.internal(w, "add session", err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"playerId": id, "token": token, "nickname": nick, "hasPassword": true})
+}
+
+func (a *API) logout(w http.ResponseWriter, r *http.Request, p Player) {
+	if err := a.store.DeleteSession(r.Context(), p.TokenHash); err != nil {
+		a.internal(w, "logout", err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) allSaves(w http.ResponseWriter, r *http.Request, p Player) {
+	saves, err := a.store.AllSaves(r.Context(), p.ID)
+	if err != nil {
+		a.internal(w, "all saves", err)
+		return
+	}
+	out := map[string]any{}
+	for g, sv := range saves {
+		out[g] = map[string]any{"data": json.RawMessage(sv.Data), "flags": json.RawMessage(sv.Flags), "updatedAt": sv.UpdatedAt}
+	}
+	writeJSON(w, 200, out)
+}
+
+// ---- achievements ----
+
+func (a *API) addAchievements(w http.ResponseWriter, r *http.Request, p Player) {
+	var in struct {
+		Items []Achievement `json:"items"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if len(in.Items) == 0 || len(in.Items) > 200 {
+		fail(w, 400, "bad_items", "От 1 до 200 достижений за раз")
+		return
+	}
+	for _, it := range in.Items {
+		if !validAchievement(it) {
+			fail(w, 400, "bad_achievement", "Неверное достижение: "+it.GameID+" / "+it.ID)
+			return
+		}
+	}
+	added, err := a.store.AddAchievements(r.Context(), p.ID, in.Items)
+	if err != nil {
+		a.internal(w, "add achievements", err)
+		return
+	}
+	writeJSON(w, 200, map[string]int{"added": added})
+}
+
+func (a *API) myAchievements(w http.ResponseWriter, r *http.Request, p Player) {
+	list, err := a.store.PlayerAchievements(r.Context(), p.ID)
+	if err != nil {
+		a.internal(w, "my achievements", err)
+		return
+	}
+	writeJSON(w, 200, list)
+}
+
+func (a *API) achievementBoard(w http.ResponseWriter, r *http.Request) {
+	limit, ok := parseLimit(w, r)
+	if !ok {
+		return
+	}
+	rows, err := a.store.AchievementBoard(r.Context(), limit)
+	if err != nil {
+		a.internal(w, "achievement board", err)
+		return
+	}
+	writeJSON(w, 200, rows)
+}
+
+func parseLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
+	limit := 20
+	if s := r.URL.Query().Get("limit"); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 1 || n > 50 {
+			fail(w, 400, "bad_limit", "limit: от 1 до 50")
+			return 0, false
+		}
+		limit = n
+	}
+	return limit, true
 }
 
 func gameFromPath(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -348,14 +515,9 @@ func (a *API) leaderboard(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	limit := 20
-	if s := r.URL.Query().Get("limit"); s != "" {
-		n, err := strconv.Atoi(s)
-		if err != nil || n < 1 || n > 50 {
-			fail(w, 400, "bad_limit", "limit: от 1 до 50")
-			return
-		}
-		limit = n
+	limit, ok := parseLimit(w, r)
+	if !ok {
+		return
 	}
 	rows, err := a.store.Leaderboard(r.Context(), g, limit)
 	if err != nil {
