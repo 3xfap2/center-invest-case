@@ -7,6 +7,7 @@ function fakeServer() {
     accounts: [] as { nick: string; password: string | null }[], // every player; logout ends a session, not the account
     saves: {} as Record<string, unknown>,
     achievements: [] as { gameId: string; id: string }[],
+    codes: new Map<string, { code: string; player: { nick: string; password: string | null } }>(), // lower-case nickname → one-time code
   };
   let n = 0;
   const handle = async (r: Route) => {
@@ -43,6 +44,19 @@ function fakeServer() {
         const t = `tok-${++n}`;
         db.players.set(t, acc);
         return json(200, { playerId: 'p', token: t, nickname: acc.nick, hasPassword: true });
+      }
+      case 'POST /api/v1/players/me/transfer':
+        if (!me) return json(401, { error: { code: 'unauthorized', message: '' } });
+        db.codes.set(me.nick.toLowerCase(), { code: '482913', player: me });
+        return json(201, { code: '482913', expiresAt: new Date(Date.now() + 600_000).toISOString(), nickname: me.nick });
+      case 'POST /api/v1/login/code': {
+        const nick = String(body.nickname).trim().toLowerCase();
+        const c = db.codes.get(nick);
+        if (!c || c.code !== String(body.code)) return json(401, { error: { code: 'bad_code', message: '' } });
+        db.codes.delete(nick); // one use only
+        const t = `tok-${++n}`;
+        db.players.set(t, c.player);
+        return json(200, { playerId: 'p', token: t, nickname: c.player.nick, hasPassword: c.player.password !== null });
       }
       case 'POST /api/v1/logout':
         db.players.delete(token);
@@ -117,6 +131,7 @@ test('optional account: play with a nickname, protect it, log out, log in again 
 
   // 4. Log in (wrong password first) and the progress comes back from the server.
   await page.goto('/account');
+  await page.getByRole('button', { name: 'По паролю' }).click();
   await page.getByLabel('Ник').fill('аня');
   await page.getByLabel('Пароль').fill('wrong12');
   await page.getByRole('button', { name: 'Войти' }).click();
@@ -153,9 +168,52 @@ test('without the server, the leaderboard explains itself and the account page s
   await expect(page.getByTestId('achievement-board')).toContainText('Таблица появится, когда сервер будет доступен');
   await page.goto('/account');
   await page.getByLabel('Ник').fill('Аня');
-  await page.getByLabel('Пароль').fill('secret1');
+  await page.getByLabel('Код с другого устройства').fill('123456');
   await page.getByRole('button', { name: 'Войти' }).click();
   await expect(page.getByRole('alert')).toContainText('Сервер сейчас недоступен');
+});
+
+test('another device without a password: a one-time code from the first device brings the progress over', async ({ browser }) => {
+  const server = fakeServer();
+
+  // Device 1: play with a nickname, then ask for a code.
+  const one = await (await browser.newContext()).newPage();
+  await one.route('**/api/**', server.handle);
+  await one.goto('/start?game=mock');
+  await one.getByLabel('Как тебя зовут в игре?').fill('Аня');
+  await one.getByRole('button', { name: 'Дальше' }).click();
+  await expect(game(one).locator('#state')).toHaveText('init получен');
+  await game(one).locator('#save').click();
+  await expect(one.getByTestId('save-status')).toHaveText('Сохранено', { timeout: 5000 });
+  await one.goto('/account');
+  await one.getByTestId('transfer').getByRole('button', { name: 'Получить код' }).click();
+  await expect(one.getByTestId('transfer-code')).toHaveText('482 913');
+
+  // Device 2 (an empty browser): a wrong code first, then the right one with spaces.
+  const two = await (await browser.newContext()).newPage();
+  two.on('console', (m) => m.type() === 'error' && !m.location().url.includes('/api/') && errors.push(m.text()));
+  await two.route('**/api/**', server.handle);
+  await two.goto('/account');
+  await two.getByLabel('Ник').fill('аня');
+  await two.getByLabel('Код с другого устройства').fill('111111');
+  await two.getByRole('button', { name: 'Войти' }).click();
+  await expect(two.getByRole('alert')).toContainText('Неверный ник или код');
+  await two.getByLabel('Код с другого устройства').fill('482 913');
+  await two.getByRole('button', { name: 'Войти' }).click();
+  await expect(two).toHaveURL('/games');
+  await expect(two.getByTestId('player-chip')).toContainText('Аня');
+  await two.goto('/play/mock');
+  const init = JSON.parse((await game(two).locator('#init').textContent()) ?? '{}');
+  expect(init.save).toEqual({ v: 1, counter: 1, scene: 'mock-1' });
+
+  // The code worked once: a link with it now fails, but it opens the form already filled in.
+  const three = await (await browser.newContext()).newPage();
+  await three.route('**/api/**', server.handle);
+  await three.goto('/account?nick=%D0%90%D0%BD%D1%8F&code=482913');
+  await expect(three.getByLabel('Ник')).toHaveValue('Аня');
+  await expect(three.getByLabel('Код с другого устройства')).toHaveValue('482913');
+  await three.getByRole('button', { name: 'Войти' }).click();
+  await expect(three.getByRole('alert')).toContainText('Неверный ник или код');
 });
 
 test('nicknames are unique: a taken one is refused, a free one is accepted, your own continues after a restart', async ({ page, context }) => {

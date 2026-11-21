@@ -16,7 +16,7 @@ interface Store extends L.SavedState {
   finishRun: (gameId: string, end: EndResult, earned: string[]) => L.Run;
   markRunSynced: (at: number) => void;
   resetGame: (gameId: string) => void;
-  loginAs: (nickname: string, token: string) => void;
+  loginAs: (nickname: string, token: string, hasPassword?: boolean) => void;
   setHasPassword: (v: boolean) => void;
   mergeServer: (saves: Record<string, L.ServerSave>, achievements: { gameId: string; id: string }[]) => void;
   /** Logging out on a shared computer clears this device; the account stays on the server. */
@@ -66,7 +66,7 @@ export const useStore = create<Store>()(
         },
         markRunSynced: (at) => update((s) => L.markRunSynced(s, at)),
         resetGame: (g) => update((s) => L.resetGame(s, g, Date.now())),
-        loginAs: (n, t) => update((s) => L.loginAs(s, n, t, () => crypto.randomUUID())),
+        loginAs: (n, t, p = true) => update((s) => L.loginAs(s, n, t, () => crypto.randomUUID(), p)),
         setHasPassword: (v) => update((s) => L.setHasPassword(s, v)),
         mergeServer: (saves, ach) => update((s) => L.mergeServer(s, saves, ach, Date.now())),
         logout: () => set((s) => ({ ...L.emptyState(), muted: s.muted })),

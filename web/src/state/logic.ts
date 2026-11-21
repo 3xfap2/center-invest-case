@@ -69,8 +69,8 @@ export function setPlayer(s: SavedState, nickname: string, difficulty: Difficult
 }
 
 /** After a login: this device now belongs to that account. */
-export function loginAs(s: SavedState, nickname: string, token: string, newId: () => string): SavedState {
-  return { ...s, player: { id: s.player?.id ?? newId(), nickname, difficulty: s.player?.difficulty ?? 'normal', token, hasPassword: true } };
+export function loginAs(s: SavedState, nickname: string, token: string, newId: () => string, hasPassword = true): SavedState {
+  return { ...s, player: { id: s.player?.id ?? newId(), nickname, difficulty: s.player?.difficulty ?? 'normal', token, hasPassword } };
 }
 
 export const setHasPassword = (s: SavedState, hasPassword: boolean): SavedState =>

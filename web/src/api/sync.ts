@@ -155,16 +155,40 @@ export type AccountResult = 'ok' | 'bad' | 'taken' | 'limited' | 'offline';
 const errorResult = (e: unknown): AccountResult =>
   e instanceof ApiError ? (e.status === 401 ? 'bad' : e.status === 409 ? 'taken' : e.status === 429 ? 'limited' : e.status === 400 ? 'bad' : 'offline') : 'offline';
 
-/** Logs this device into an account and brings its saves and achievements here. */
+/** Logs this device into an account with its password and brings its saves and achievements here. */
 export async function login(nickname: string, password: string): Promise<AccountResult> {
-  let token: string;
   try {
     const r = await api.login(nickname.trim(), password);
-    useStore.getState().loginAs(r.nickname, r.token);
-    token = r.token;
+    useStore.getState().loginAs(r.nickname, r.token, true);
+    return await afterLogin(r.token);
   } catch (e) {
     return errorResult(e);
   }
+}
+
+/** Logs this device in with a one-time code from the player's other device. No password needed. */
+export async function loginWithCode(nickname: string, code: string): Promise<AccountResult> {
+  try {
+    const r = await api.loginCode(nickname.trim(), code.replace(/\s/g, ''));
+    useStore.getState().loginAs(r.nickname, r.token, r.hasPassword);
+    return await afterLogin(r.token);
+  } catch (e) {
+    return errorResult(e);
+  }
+}
+
+/** On the old device: a 6-digit code to continue on another device (valid 10 minutes, once). */
+export async function requestCode(): Promise<{ code: string; expiresAt: string } | 'offline'> {
+  if (!online()) return 'offline';
+  try {
+    const r = await withToken((t) => api.createTransfer(t));
+    return r ?? 'offline';
+  } catch {
+    return 'offline';
+  }
+}
+
+async function afterLogin(token: string): Promise<AccountResult> {
   useSync.setState({ status: 'online' });
   try {
     const [saves, achievements] = await Promise.all([api.allSaves(token), api.myAchievements(token)]);

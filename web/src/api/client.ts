@@ -58,6 +58,14 @@ export const api = {
   login: (nickname: string, password: string) =>
     call(z.object({ playerId: z.string(), token: z.string(), nickname: z.string() }), 'POST', '/login', { body: { nickname, password } }),
 
+  createTransfer: (token: string) =>
+    call(z.object({ code: z.string(), expiresAt: z.string(), nickname: z.string() }), 'POST', '/players/me/transfer', { token }),
+
+  loginCode: (nickname: string, code: string) =>
+    call(z.object({ playerId: z.string(), token: z.string(), nickname: z.string(), hasPassword: z.boolean() }), 'POST', '/login/code', {
+      body: { nickname, code },
+    }),
+
   logout: (token: string) => call(z.null(), 'POST', '/logout', { token }),
 
   allSaves: (token: string) =>

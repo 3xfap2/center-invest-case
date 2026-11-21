@@ -46,7 +46,7 @@ export type Route =
   | { name: 'games' }
   | { name: 'play'; id: string }
   | { name: 'results'; id: string }
-  | { name: 'account' }
+  | { name: 'account'; nick: string | null; code: string | null }
   | { name: 'notFound' };
 
 export function parseRoute(pathname: string, search: string): Route {
@@ -55,7 +55,7 @@ export function parseRoute(pathname: string, search: string): Route {
   if (parts.length === 0) return { name: 'landing' };
   if (parts[0] === 'start' && parts.length === 1) return { name: 'start', game: q.get('game') };
   if (parts[0] === 'games' && parts.length === 1) return { name: 'games' };
-  if (parts[0] === 'account' && parts.length === 1) return { name: 'account' };
+  if (parts[0] === 'account' && parts.length === 1) return { name: 'account', nick: q.get('nick'), code: q.get('code') };
   if (parts[0] === 'play' && parts.length === 2) return { name: 'play', id: parts[1] };
   if (parts[0] === 'results' && parts.length === 2) return { name: 'results', id: parts[1] };
   return { name: 'notFound' };

@@ -97,7 +97,7 @@ export function App() {
       page = hasPlayer ? <GameSelect /> : <Redirect to="/start" />;
       break;
     case 'account':
-      page = <Account />;
+      page = <Account nick={route.nick} code={route.code} />;
       break;
     case 'play': {
       const game = gameById(route.id);
