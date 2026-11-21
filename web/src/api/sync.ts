@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { Difficulty } from '../bridge/messages';
 import { allAchievements } from '../state/logic';
 import { useStore } from '../state/store';
 import { ApiError, api } from './client';
@@ -49,17 +50,62 @@ function ensurePlayer(): Promise<string | null> {
   return creating;
 }
 
+let conflict: string | null = null; // a nickname the server refused this session: don't ask again
 async function createPlayer(nickname: string): Promise<string | null> {
+  if (conflict === nickname) return null;
   const { setToken } = useStore.getState();
   try {
     const r = await api.createPlayer(nickname);
     setToken(r.token);
     return r.token;
   } catch (e) {
+    // The player started offline and someone else registered this nickname meanwhile.
+    if (e instanceof ApiError && e.status === 409) {
+      conflict = nickname;
+      useStore.setState({ notice: `Ник «${nickname}» уже занят на сервере. Прогресс хранится только на этом устройстве. Смени ник на старте.` });
+    }
     // 400: the server did not accept the nickname (for example the word filter). Stay local.
-    if (!(e instanceof ApiError) || e.status >= 500) useSync.setState({ status: 'offline' });
+    else if (!(e instanceof ApiError) || e.status >= 500) useSync.setState({ status: 'offline' });
     return null;
   }
+}
+
+/** Nicknames are compared like the server does: case-insensitive, «ё» = «е». */
+export const sameNickname = (a: string, b: string) => {
+  const k = (s: string) => s.trim().toLowerCase().replaceAll('ё', 'е');
+  return k(a) === k(b);
+};
+
+/**
+ * «Дальше» on the start screen. A nickname this device already owns just continues.
+ * A new one is registered on the server first, so a taken nickname is refused before the game starts.
+ * Without the server the player starts locally and is registered later.
+ */
+export async function startAs(nickname: string, difficulty: Difficulty): Promise<'ok' | 'taken' | 'bad'> {
+  const nick = nickname.trim();
+  const s = useStore.getState();
+  if (s.player?.token && sameNickname(s.player.nickname, nick)) {
+    s.setPlayer(s.player.nickname, difficulty);
+    return 'ok';
+  }
+  if (useSync.getState().status !== 'online') await connect();
+  if (useSync.getState().status !== 'online') {
+    s.setPlayer(nick, difficulty);
+    return 'ok';
+  }
+  try {
+    const r = await api.createPlayer(nick);
+    s.setPlayer(r.nickname, difficulty);
+    useStore.getState().setToken(r.token);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 409) return 'taken';
+    if (e instanceof ApiError && e.status === 400) return 'bad';
+    s.setPlayer(nick, difficulty); // the server failed: play locally, register later
+    return 'ok';
+  }
+  void flushRuns();
+  void pushAchievements();
+  return 'ok';
 }
 
 /** Runs a call with the player's token. A 401 means the server forgot us: get a new token once and retry. */

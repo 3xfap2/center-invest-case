@@ -48,6 +48,9 @@ export const api = {
     run: { gameId: string; ending: string; stars: number; score: number; durationSec: number; difficulty: Difficulty; choices: unknown[] },
   ) => call(z.object({ runId: z.union([z.string(), z.number()]) }), 'POST', '/runs', { token, body: run }),
 
+  checkNickname: (nickname: string) =>
+    call(z.object({ valid: z.boolean(), available: z.boolean() }), 'GET', `/players/check?nickname=${encodeURIComponent(nickname)}`),
+
   // Optional accounts: playing never needs them.
   setPassword: (token: string, password: string) =>
     call(z.object({ hasPassword: z.literal(true) }), 'POST', '/players/me/password', { token, body: { password } }),

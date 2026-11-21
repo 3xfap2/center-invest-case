@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { login, logout, protect, useSync } from '../src/api/sync';
+import { login, logout, protect, startAs, useSync } from '../src/api/sync';
 import * as L from '../src/state/logic';
 import { useStore } from '../src/state/store';
 
@@ -108,5 +108,42 @@ describe('account sync', () => {
     await logout();
     expect(useStore.getState().player).toBeNull();
     expect(useStore.getState().games).toEqual({});
+  });
+});
+
+describe('unique nicknames: startAs', () => {
+  beforeEach(() => {
+    useStore.setState({ ...L.emptyState() });
+    useSync.setState({ status: 'online', lastSaved: null });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('a nickname this device already owns continues without asking the server (any case, ё = е)', async () => {
+    useStore.getState().setPlayer('Ёжик', 'easy');
+    useStore.getState().setToken('tok');
+    const f = vi.fn();
+    vi.stubGlobal('fetch', f);
+    expect(await startAs('  ежик ', 'hard')).toBe('ok');
+    expect(f).not.toHaveBeenCalled();
+    expect(useStore.getState().player).toMatchObject({ nickname: 'Ёжик', token: 'tok', difficulty: 'hard' });
+  });
+
+  it('a new nickname is registered first', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(201, { playerId: 's1', token: 'tok-new', nickname: 'Аня' })));
+    expect(await startAs('Аня', 'normal')).toBe('ok');
+    expect(useStore.getState().player).toMatchObject({ nickname: 'Аня', token: 'tok-new' });
+  });
+
+  it('a taken nickname is refused and nothing is saved', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(409, { error: { code: 'nickname_taken', message: '' } })));
+    expect(await startAs('Аня', 'normal')).toBe('taken');
+    expect(useStore.getState().player).toBeNull();
+  });
+
+  it('without the server, the player starts locally', async () => {
+    useSync.setState({ status: 'offline' });
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('down'))));
+    expect(await startAs('Аня', 'normal')).toBe('ok');
+    expect(useStore.getState().player).toMatchObject({ nickname: 'Аня', token: null });
   });
 });

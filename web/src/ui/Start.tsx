@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { connect } from '../api/sync';
+import { useEffect, useState } from 'react';
+import { api } from '../api/client';
+import { sameNickname, startAs, useSync } from '../api/sync';
 import type { Difficulty } from '../bridge/messages';
 import { gameById } from '../games/catalog';
 import { navigate } from '../router';
@@ -18,23 +19,79 @@ function nicknameError(nick: string): string | null {
   return null;
 }
 
+type Check = 'idle' | 'checking' | 'free' | 'taken' | 'mine';
+const CHECK_DELAY_MS = 350;
+
+/** Asks the server whether the nickname is free, a moment after the player stops typing. */
+function useNicknameCheck(nickname: string, localError: string | null): [Check, (c: Check) => void] {
+  const player = useStore((s) => s.player);
+  const online = useSync((s) => s.status === 'online');
+  const [check, setCheck] = useState<Check>('idle');
+  const nick = nickname.trim();
+  const mine = !!player?.token && sameNickname(player.nickname, nick);
+
+  useEffect(() => {
+    if (localError || !nick) return setCheck('idle');
+    if (mine) return setCheck('mine');
+    if (!online) return setCheck('idle');
+    setCheck('checking');
+    let live = true;
+    const t = setTimeout(() => {
+      api
+        .checkNickname(nick)
+        .then((r) => live && setCheck(!r.valid ? 'idle' : r.available ? 'free' : 'taken'))
+        .catch(() => live && setCheck('idle'));
+    }, CHECK_DELAY_MS);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [nick, localError, mine, online]);
+
+  return [check, setCheck];
+}
+
+function CheckLine({ check }: { check: Check }) {
+  if (check === 'idle') return null;
+  const color = check === 'taken' ? 'var(--pn-danger)' : check === 'checking' ? 'var(--pn-text-3)' : 'var(--pn-green)';
+  return (
+    <p aria-live="polite" data-testid="nick-check" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10, color, fontSize: 15, fontWeight: 500 }}>
+      {check !== 'checking' && <span className={`pn-dot ${check === 'taken' ? '' : 'pn-live'}`} style={check === 'taken' ? { background: 'var(--pn-danger)' } : undefined} />}
+      {check === 'checking' && 'Проверяем ник…'}
+      {check === 'free' && 'Ник свободен'}
+      {check === 'mine' && 'Это твой ник: продолжишь с того же места'}
+      {check === 'taken' && (
+        <span>
+          Этот ник уже занят. Придумай другой или <Link to="/account">войди в аккаунт</Link>, если это ты.
+        </span>
+      )}
+    </p>
+  );
+}
+
 export function Start({ game }: { game: string | null }) {
   const player = useStore((s) => s.player);
-  const setPlayer = useStore((s) => s.setPlayer);
   const [nickname, setNickname] = useState(player?.nickname ?? '');
   const [difficulty, setDifficulty] = useState<Difficulty>(player?.difficulty ?? 'normal');
   const [touched, setTouched] = useState(false);
-  const error = nicknameError(nickname);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const localError = nicknameError(nickname);
+  const [check, setCheck] = useNicknameCheck(nickname, localError);
+  const error = localError ?? serverError;
   const showError = touched && !!error;
   const target = game && gameById(game)?.available ? `/play/${game}` : '/games';
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setTouched(true);
-    if (error) return;
-    setPlayer(nickname, difficulty);
-    void connect();
-    navigate(target);
+    if (localError || check === 'taken' || busy) return;
+    setBusy(true);
+    const r = await startAs(nickname, difficulty);
+    setBusy(false);
+    if (r === 'ok') return navigate(target);
+    if (r === 'taken') setCheck('taken');
+    else setServerError('Сервер не принял этот ник. Попробуй другой.');
   }
 
   return (
@@ -63,7 +120,10 @@ export function Start({ game }: { game: string | null }) {
               spellCheck={false}
               autoFocus
               value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
+              onChange={(e) => {
+                setNickname(e.target.value);
+                setServerError(null);
+              }}
               onBlur={() => nickname.length && setTouched(true)}
               aria-invalid={showError}
               aria-describedby={showError ? 'nick-hint nick-err' : 'nick-hint'}
@@ -76,6 +136,7 @@ export function Start({ game }: { game: string | null }) {
                 {nickname.length} / 20
               </span>
             </div>
+            {!showError && <CheckLine check={check} />}
             {showError && (
               <p id="nick-err" className="pn-error" role="alert">
                 <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" style={{ flex: 'none', marginTop: 2 }}>
@@ -118,7 +179,7 @@ export function Start({ game }: { game: string | null }) {
               <br />
               Уже играл на другом устройстве? <Link to="/account">Войти</Link>
             </p>
-            <button type="submit" className="pn-btn pn-btn--accent pn-btn--lg pn-btn--block-sm">
+            <button type="submit" className="pn-btn pn-btn--accent pn-btn--lg pn-btn--block-sm" disabled={busy || check === 'taken'}>
               Дальше <span className="pn-arrow" aria-hidden="true">→</span>
             </button>
           </div>

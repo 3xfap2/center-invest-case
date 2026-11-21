@@ -20,7 +20,13 @@ function fakeServer() {
     switch (key) {
       case 'GET /api/v1/health':
         return json(200, { ok: true, version: 'test' });
+      case 'GET /api/v1/players/check': {
+        const nick = (url.searchParams.get('nickname') ?? '').toLowerCase();
+        return json(200, { valid: true, available: !db.accounts.some((p) => p.nick.toLowerCase() === nick) });
+      }
       case 'POST /api/v1/players': {
+        if (db.accounts.some((p) => p.nick.toLowerCase() === String(body.nickname).toLowerCase()))
+          return json(409, { error: { code: 'nickname_taken', message: '' } });
         const t = `tok-${++n}`;
         const p = { nick: body.nickname, password: null };
         db.accounts.push(p);
@@ -150,4 +156,33 @@ test('without the server, the leaderboard explains itself and the account page s
   await page.getByLabel('Пароль').fill('secret1');
   await page.getByRole('button', { name: 'Войти' }).click();
   await expect(page.getByRole('alert')).toContainText('Сервер сейчас недоступен');
+});
+
+test('nicknames are unique: a taken one is refused, a free one is accepted, your own continues after a restart', async ({ page, context }) => {
+  const server = fakeServer();
+  server.db.accounts.push({ nick: 'Аня', password: null });
+  await page.route('**/api/**', server.handle);
+
+  await page.goto('/start?game=mock');
+  const nick = page.getByLabel('Как тебя зовут в игре?');
+  await nick.fill('аня');
+  await expect(page.getByTestId('nick-check')).toContainText('Этот ник уже занят');
+  await expect(page.getByRole('button', { name: 'Дальше' })).toBeDisabled();
+
+  await nick.fill('Аня_2');
+  await expect(page.getByTestId('nick-check')).toHaveText('Ник свободен');
+  await page.getByRole('button', { name: 'Дальше' }).click();
+  await expect(page).toHaveURL('/play/mock');
+  expect(server.db.accounts.map((a) => a.nick)).toEqual(['Аня', 'Аня_2']);
+
+  // "Closing the browser": a new page in the same profile. The nickname is still yours.
+  await page.close();
+  const again = await context.newPage();
+  await again.route('**/api/**', server.handle);
+  await again.goto('/start');
+  await expect(again.getByLabel('Как тебя зовут в игре?')).toHaveValue('Аня_2');
+  await expect(again.getByTestId('nick-check')).toHaveText('Это твой ник: продолжишь с того же места');
+  await again.getByRole('button', { name: 'Дальше' }).click();
+  await expect(again).toHaveURL('/games');
+  expect(server.db.accounts).toHaveLength(2); // no second registration
 });
