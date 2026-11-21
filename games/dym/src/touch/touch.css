@@ -1,0 +1,90 @@
+/* On-screen controls for phones (see TouchPad.tsx). Everything is transparent to touches except the controls. */
+.tp {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.tp-look {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 55%;
+  pointer-events: auto;
+  touch-action: none;
+}
+.tp-stick {
+  position: absolute;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  pointer-events: auto;
+  touch-action: none;
+  display: grid;
+  place-items: center;
+}
+.tp-knob {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: transform 60ms linear;
+}
+.tp-buttons {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 10px;
+  justify-items: end;
+}
+.tp-btn {
+  min-width: 76px;
+  min-height: 56px;
+  padding: 0 14px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(10, 14, 20, 0.6);
+  color: #fff;
+  font: 600 15px/1.1 system-ui, sans-serif;
+  pointer-events: auto;
+  touch-action: none;
+}
+.tp-btn.is-down {
+  background: rgba(255, 255, 255, 0.3);
+}
+.tp-rotate {
+  display: none;
+}
+@media (orientation: portrait) {
+  .tp-rotate {
+    display: block;
+    position: absolute;
+    top: 64px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: rgba(10, 14, 20, 0.75);
+    color: #fff;
+    font: 500 14px/1.3 system-ui, sans-serif;
+    white-space: nowrap;
+  }
+}
+
+/* Smoke on a phone: the keyboard hints aren't needed, and the air/water gauge moves right of the joystick. */
+@media (pointer: coarse) {
+  .game-shell .field-keys { display: none; }
+  .field-bottom .reserves { margin-left: 156px; }
+}

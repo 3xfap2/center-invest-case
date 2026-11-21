@@ -13,6 +13,14 @@ import { ArchiveChallenge, ArchiveResult } from './world/ArchiveContinuation'
 import { OfficeSound, type Sound } from './world/sound'
 import './world/styles.css'
 import './world/fps.css'
+import { TouchPad, isTouchDevice, type PadButton } from './touch/TouchPad'
+
+// Phone controls: the joystick walks; dragging on the 3D view looks around (the game's own no-capture mode).
+const TOUCH_BUTTONS: PadButton[] = [
+  { id: 'tasks', label: 'Задачи', key: 'Tab' },
+  { id: 'pause', label: 'Пауза', key: 'Escape' },
+  { id: 'act', label: 'Действие', key: 'KeyE' },
+]
 
 type SiteInit = { nickname?: string; difficulty?: Difficulty; save?: unknown; muted?: boolean }
 type Bridge = {
@@ -485,6 +493,7 @@ function App() {
         <div className="fps-log-hint"><kbd>Tab</kbd> Задачи{fallback && <span> · Зажми мышь, чтобы осмотреться</span>}</div>
       </>}
     </div>}
+    {isTouchDevice() && active && <TouchPad buttons={TOUCH_BUTTONS} />}
     {debug && !panel && !inactive && !lift && <div className="fps-dev">
       <button className="icon-button" onClick={() => open('debug')} aria-label="Режим демонстрации"><TerminalSquare size={19} /></button>
       {active && <button className="icon-button" onClick={() => { office.current?.approach(place); office.current?.capture() }} aria-label="Подойти к цели"><Flag size={17} /></button>}
