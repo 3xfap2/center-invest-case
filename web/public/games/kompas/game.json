@@ -1,0 +1,22 @@
+{
+  "id": "kompas",
+  "title": "Компас",
+  "profession": "Педагог-психолог (профконсультант)",
+  "version": "0.1.0",
+  "entry": "index.html",
+  "approxSizeMB": 0.28,
+  "minutes": 15,
+  "controls": "ЛКМ перетащить, ПКМ повернуть, колесо приблизить, Esc пауза",
+  "credits": "CREDITS.md",
+  "achievements": {
+    "km_first_look": "Первое наблюдение",
+    "km_open_question": "Хороший вопрос",
+    "km_own_paths": "У каждого свой путь",
+    "km_self_radar": "Мой компас"
+  },
+  "endings": {
+    "good": "Свои маршруты",
+    "mixed": "Открытые двери",
+    "ranked": "Места в таблице"
+  }
+}

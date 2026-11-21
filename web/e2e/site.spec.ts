@@ -43,8 +43,10 @@ test('landing: the poster shelf switches the hero, by mouse and keyboard, and le
   await expect(page.getByTestId('game-kompas')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('game-kompas')).toBeFocused();
   await expect(page.getByTestId('hero')).toContainText('Пять подростков');
-  // A game that isn't built yet can't be started.
-  await expect(page.getByTestId('hero').getByRole('button', { name: 'Скоро' })).toBeDisabled();
+  // The hero's button follows the game's status: a built game can be played, one that isn't built can't be started.
+  const built = !(await page.getByTestId('game-kompas').textContent())?.includes('скоро');
+  if (built) await expect(page.getByTestId('cta-play')).toBeVisible();
+  else await expect(page.getByTestId('hero').getByRole('button', { name: 'Скоро' })).toBeDisabled();
 
   await page.getByTestId('nav-start').click();
   await expect(page).toHaveURL('/start');

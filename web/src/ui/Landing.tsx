@@ -25,10 +25,17 @@ export function Landing() {
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(hoverTimer.current), []);
 
+  // A click or focus selects at once and cancels a pending hover selection (it would jump back later).
+  const pick = (id: string) => {
+    clearTimeout(hoverTimer.current);
+    select(id);
+  };
+
   const startPath = (g?: Game) => (hasPlayer ? (g ? `/play/${g.id}` : '/games') : g ? `/start?game=${g.id}` : '/start');
 
   function onShelfKey(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    clearTimeout(hoverTimer.current); // a key press wins over a pending hover selection
     e.preventDefault();
     const i = games.findIndex((g) => g.id === game.id);
     const j = (i + (e.key === 'ArrowRight' ? 1 : -1) + games.length) % games.length;
@@ -120,8 +127,8 @@ export function Landing() {
                   className={`pn-poster ${g.id === game.id ? 'is-selected' : ''} ${g.available ? '' : 'is-soon'}`}
                   aria-pressed={g.id === game.id}
                   style={{ '--p-acc': g.accent } as React.CSSProperties}
-                  onClick={() => select(g.id)}
-                  onFocus={() => select(g.id)}
+                  onClick={() => pick(g.id)}
+                  onFocus={() => pick(g.id)}
                   onMouseEnter={() => {
                     clearTimeout(hoverTimer.current);
                     hoverTimer.current = setTimeout(() => select(g.id), HOVER_SELECT_MS);

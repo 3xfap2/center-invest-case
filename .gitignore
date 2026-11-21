@@ -34,3 +34,6 @@ npm-debug.log*
 !web/public/games/mock/
 web/public/games/mock/ns-bridge.js
 web/src/games.generated.json
+# Finished single-file game builds delivered by the game teams (no build step needed to deploy them)
+!web/public/games/dym/
+!web/public/games/kompas/
