@@ -78,6 +78,25 @@ check(
   unlocked.every((k) => jsonIds.includes(k)) && jsonIds.every((k) => unlocked.includes(k)) && achJson.every((a) => a.title && a.description),
   `в коде ${unlocked.length}, в json ${jsonIds.length}`,
 );
+// Озвучка: у каждой реплики Ирины, Тимура и Лиса (без ника) есть файл в public/voice.
+{
+  const { D } = await import('../src/content/dialogues.js');
+  const { voiceKey, VOICED } = await import('../src/core/voiceKey.js');
+  const manifestPath = rel('public/voice/manifest.json');
+  const manifest = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : {};
+  const missing = [];
+  const walk = (x) => {
+    if (Array.isArray(x)) return x.forEach(walk);
+    if (!x || typeof x !== 'object') return;
+    if (typeof x.text === 'string' && VOICED.includes(x.who) && !x.text.includes('{name}') && x.text.replace(/[.…\s]/g, '')) {
+      const k = voiceKey(x.who, x.text);
+      if (!manifest[k] || !fs.existsSync(rel(`public/${manifest[k].file}`))) missing.push(`${x.who}: ${x.text.slice(0, 40)}`);
+    }
+    Object.values(x).forEach((v) => v && typeof v === 'object' && walk(v));
+  };
+  walk(D);
+  check('озвучка есть для всех реплик Ирины, Тимура и Лиса', missing.length === 0, missing.length ? `нет озвучки: ${missing.join(' | ')} (перегенерировать: scripts/tts_generate.py)` : '');
+}
 check('общий мост берётся из games/shared', allSrc.includes("import '../../../shared/ns-bridge.js'") && !fs.existsSync(rel('src/ns-bridge.js')));
 
 // ---------- 2. Автопрохождение (dev) ----------

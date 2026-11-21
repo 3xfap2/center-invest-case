@@ -230,3 +230,11 @@ export function playIntroMusic() {
     }, 1800);
   };
 }
+
+// Для озвучки реплик: общий контекст и выход (громкость и «Звук: выкл» действуют и на голос).
+export function audioContext() {
+  return ctx;
+}
+export function audioOut() {
+  return master;
+}

@@ -16,6 +16,7 @@ import { createChapter1, DEBUG_PRESETS, applyPreset } from './game/chapter1.js';
 import { ENDINGS } from './content/meta.js';
 import { createIntro } from './world/intro.js';
 import { playIntro } from './game/introCutscene.js';
+import { voice } from './core/voice.js';
 import career from './content/career.json';
 
 const canvas = document.getElementById('view');
@@ -273,6 +274,7 @@ async function showStart() {
 
 async function startChapter(rebuild = false) {
   unlockAudio();
+  voice.preload(); // голоса подгружаются в фоне, не задерживая игру
   if (rebuild) buildWorlds();
   ctx.cutscene = false; // прошлая глава могла закрыться посреди катсцены (вступление, меню отладки)
   chapter = createChapter1(ctx);
