@@ -1,3 +1,4 @@
+import { isTouchDevice } from '../touch/TouchPad'
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as T from 'three'
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js'
@@ -310,6 +311,8 @@ export const Office = forwardRef<OfficeHandle, OfficeProps>(function Office(prop
     const capture = () => {
       requestedRelease = false
       if (fallback || controls.isLocked || !canvas.isConnected) return
+      // Phones and tablets have no mouse to capture: use the drag-to-look mode at once.
+      if (isTouchDevice()) { activateFallback(); return }
       try {
         // Promise rejection is reported as a pointerlockerror on browsers that deny iframe capture.
         const result = canvas.requestPointerLock() as unknown

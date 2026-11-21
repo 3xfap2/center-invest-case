@@ -1,3 +1,4 @@
+import { isTouchDevice } from '../touch/TouchPad'
 import * as T from 'three'
 import { STEP, eyeHeight, type Input, type Round } from '../sim'
 import { clearLine, distance } from '../sim/partner'
@@ -169,7 +170,9 @@ export class World {
     this.lockRequired = true
     this.clearInput()
     this.sound.wake()
-    this.requestLock()
+    // Phones and tablets have no mouse to capture: play in the keyboard mode (drag to look) at once.
+    if (isTouchDevice()) this.keyboard()
+    else this.requestLock()
   }
 
   keyboard() {
