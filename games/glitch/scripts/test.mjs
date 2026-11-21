@@ -184,6 +184,54 @@ try {
   check('сайт в iframe без исключений', false, e.message);
 }
 check('нет ошибок в консоли (iframe)', errors.length === 0, errors.join(' | '));
+
+// ---------- Вступительный ролик ----------
+console.log('\n== Вступительный ролик');
+try {
+  const p2 = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  await p2.addInitScript(() => {
+    Element.prototype.requestPointerLock = () => Promise.resolve();
+  });
+  const errs2 = [];
+  p2.on('pageerror', (e) => errs2.push(e.message));
+  p2.on('console', (m) => m.type() === 'error' && errs2.push(m.text()));
+  await p2.goto(DEV);
+  await p2.getByText('Начать смену').click();
+  await p2.waitForSelector('.cutscene .cut-sub.show', { timeout: 8000 });
+  const sub = await p2.locator('.cut-sub').textContent();
+  check('ролик показан с субтитрами', !!sub && sub.length > 10, sub);
+  // Весь ролик: камера не должна проходить сквозь голову героя (голова с запасом 0.16 м).
+  const head = await p2.evaluate(async () => {
+    const g = window.__glitch;
+    const hero = g.ctx.world.objects.hero;
+    const cam = g.ctx.camera;
+    const wp = cam.position.clone();
+    const t0 = performance.now();
+    let min = 9;
+    while (g.ctx.sceneName === 'intro' && performance.now() - t0 < 40000) {
+      hero.userData.head.getWorldPosition(wp);
+      const s = hero.scale.x;
+      const h = 0.16 * s;
+      const c = cam.position;
+      const d = Math.hypot(
+        Math.max(Math.abs(c.x - wp.x) - h, 0),
+        Math.max(Math.abs(c.y - (wp.y + 0.1 * s)) - h, 0),
+        Math.max(Math.abs(c.z - wp.z) - h, 0),
+      );
+      min = Math.min(min, d);
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return { min, sec: (performance.now() - t0) / 1000 };
+  });
+  check('камера ролика не проходит сквозь голову героя', head.min > 0.05, `минимум ${head.min.toFixed(3)} м`);
+  check('ролик длится 20-35 секунд', head.sec >= 20 && head.sec <= 35, `${head.sec.toFixed(1)} с`);
+  await p2.waitForFunction(() => window.__glitch?.ctx.sceneName === 'office' && !window.__glitch.ctx.cutscene, null, { timeout: 10000 });
+  check('после ролика начинается офис', true);
+  check('ролик без ошибок в консоли', errs2.length === 0, errs2.join(' | '));
+  await p2.close();
+} catch (e) {
+  check('вступительный ролик', false, e.message);
+}
 await browser.close();
 await server.close();
 

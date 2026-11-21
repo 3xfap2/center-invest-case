@@ -141,6 +141,8 @@ function initTouch() {
     bus.emit('input:tablet');
   });
 
+  // Кнопки видны только во время игры: на старте управление выключено (меню, ролик).
+  pad.classList.toggle('hidden', !input.enabled);
   bus.on('input:enabled', (v) => pad.classList.toggle('hidden', !v));
   bus.on('prompt', (label) => {
     // Ладонь горит жёлтым, только когда есть с чем взаимодействовать.
