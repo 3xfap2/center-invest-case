@@ -21,6 +21,7 @@ export const DIFFICULTY = {
     strict: false,
     shiftSec: 15 * 60, // время смены: уложился, получил звезду
     shiftSec2: 18 * 60, // то же для главы 2
+    shiftSec3: 18 * 60, // и для главы 3
     rowsNeeded: 4, // сколько строк таблицы сравнения нужно в главе 2
     mistakesForStar: 2, // сколько отчётов можно вернуть без потери звезды
   },
@@ -35,6 +36,7 @@ export const DIFFICULTY = {
     strict: false,
     shiftSec: 10 * 60,
     shiftSec2: 13 * 60,
+    shiftSec3: 13 * 60,
     rowsNeeded: 4,
     mistakesForStar: 1,
   },
@@ -49,6 +51,7 @@ export const DIFFICULTY = {
     strict: true,
     shiftSec: 7 * 60,
     shiftSec2: 9 * 60,
+    shiftSec3: 9 * 60,
     rowsNeeded: 5,
     mistakesForStar: 0,
   },
@@ -82,7 +85,7 @@ export function newGame(name, difficulty) {
 
 // Принять сохранение от сайта. Имя и сложность берём из init.
 export function restoreGame(data, name, difficulty) {
-  if (!data || data.v !== 1 || ![1, 2].includes(data.chapter)) return null;
+  if (!data || data.v !== 1 || ![1, 2, 3].includes(data.chapter)) return null;
   game.state = {
     decisions: {},
     mistakes: 0,
@@ -113,6 +116,29 @@ export function beginChapter2() {
   s.ch2 = { build: '0.9.7', obs: {}, hasSwitcher: false };
   save();
   return s;
+}
+
+// Переход к главе 3: события главы 2 уходят в prev[2], общая история остаётся.
+export function beginChapter3() {
+  const s = game.state;
+  s.prev = s.prev || {};
+  s.prev[2] = { flags: s.flags, ending: s.ending || null, playTime: s.playTime || 0, mistakes: s.mistakes || 0, hintsUsed: s.hintsUsed || 0, ch2: s.ch2 };
+  s.chapter = 3;
+  s.flags = {};
+  s.scene = 'office';
+  s.pos = null;
+  s.playTime = 0;
+  s.mistakes = 0;
+  s.hintsUsed = 0;
+  s.ending = null;
+  delete s.ch2;
+  s.ch3 = freshCh3();
+  save();
+  return s;
+}
+
+export function freshCh3() {
+  return { traces: {}, verdicts: {}, evidence: {}, reloads: 0, lisAfterReload: 0, runs: { with: false, without: false }, autotestRuns: 0, timelineTries: 0 };
 }
 
 export function diff() {

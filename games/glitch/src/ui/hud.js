@@ -4,7 +4,7 @@ import { isTouch } from '../core/input.js';
 import { promptKey } from '../core/interact.js';
 import { sfx } from '../core/audio.js';
 
-const NAMES = { irina: 'Ирина Белова', timur: 'Тимур Сафин', system: 'Система', lis: 'Лис' };
+const NAMES = { irina: 'Ирина Белова', timur: 'Тимур Сафин', system: 'Система', lis: 'Лис', nikita: 'Никита Орлов' };
 
 export function createHud(root) {
   const el = document.createElement('div');

@@ -104,15 +104,19 @@ export function createChapter1(ctx) {
   }
 
   async function talk(nodes) {
-    if (busy) return;
+    if (busy) return false;
     busy = true;
+    let ok = false;
     try {
-      await dialogue.play(nodes);
+      ok = await dialogue.play(nodes);
     } finally {
       busy = false;
     }
     refreshObjective();
+    return ok;
   }
+  // Кто сам заговаривает при приближении: после выхода из разговора ждём, пока игрок отойдёт.
+  const autoMuted = new Set();
 
   // ---------- Задачи и подсказки ----------
   const tabKey = () => (isTouch ? 'кнопка «Планшет»' : 'Tab');
@@ -297,8 +301,8 @@ export function createChapter1(ctx) {
 
   // ---------- Офис ----------
   async function irinaBrief() {
-    setFlag('met_irina');
-    await talk(D.irinaBrief);
+    if (await talk(D.irinaBrief)) setFlag('met_irina');
+    else autoMuted.add('irina');
   }
 
   function officeHandlers() {
@@ -309,11 +313,11 @@ export function createChapter1(ctx) {
       },
       timur: {
         label: 'Поговорить с Тимуром',
-        onUse: () => {
+        onUse: async () => {
           if (flag('met_timur')) return talk(D.timurAgain);
+          if (!(await talk(D.timurFirst))) return;
           setFlag('met_timur');
           unlock('gl_team');
-          return talk(D.timurFirst);
         },
       },
       pc: {
@@ -344,13 +348,16 @@ export function createChapter1(ctx) {
 
   // ---------- Станция ----------
   async function lisIntro() {
-    setFlag('met_lis');
     logAction('talk_lis');
     const answers = ['familiar', 'which_door', 'first_time'];
     const nodes = D.lisIntro.map((n) =>
       n.options ? { ...n, options: n.options.map((o, i) => ({ ...o, onPick: () => decide('gl_lis_first_answer', answers[i]) })) } : n,
     );
-    await talk(nodes);
+    if (!(await talk(nodes))) {
+      autoMuted.add('lis');
+      return;
+    }
+    setFlag('met_lis');
     later(900, () => chatOnce('lisName'));
   }
 
@@ -360,10 +367,10 @@ export function createChapter1(ctx) {
     S().lisTalks = (S().lisTalks || 1) + 1;
     if (S().lisTalks >= 3) unlock('gl_lis_friend');
     if (flag('journal_gone') && !flag('lis_gone_talk')) {
-      setFlag('lis_gone_talk');
       const nodes = [...D.lisAfterGone];
       if (diff().autoHints) nodes.splice(1, 0, D.lisAfterGoneHint);
-      return talk(nodes);
+      if (await talk(nodes)) setFlag('lis_gone_talk');
+      return;
     }
     if (flag('evidence_saved')) return talk(D.lisAfterSaved);
     return talk(D.lisIdle[lisIdleIdx++ % D.lisIdle.length]);
@@ -847,7 +854,8 @@ export function createChapter1(ctx) {
     }
 
     if (ctx.sceneName === 'office') {
-      if (free && !flag('met_irina') && distTo(w.objects.irina, p) < 3) irinaBrief();
+      if (autoMuted.has('irina') && distTo(w.objects.irina, p) > 4) autoMuted.delete('irina');
+      if (free && !flag('met_irina') && !autoMuted.has('irina') && distTo(w.objects.irina, p) < 3) irinaBrief();
       updateMarker(t, goal().target);
       refreshObjective();
       return;
@@ -877,7 +885,8 @@ export function createChapter1(ctx) {
       }
     }
 
-    if (free && !flag('met_lis') && distTo(w.objects.lis, p) < 3.2) lisIntro();
+    if (autoMuted.has('lis') && distTo(w.objects.lis, p) > 4.5) autoMuted.delete('lis');
+    if (free && !flag('met_lis') && !autoMuted.has('lis') && distTo(w.objects.lis, p) < 3.2) lisIntro();
 
     // Автоподсказки: если игрок долго стоит на одном шаге, Ирина пишет сама.
     const g = goal();
