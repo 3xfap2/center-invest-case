@@ -840,6 +840,27 @@ button {
   letter-spacing: 4px;
   margin: 4px 0 2px;
 }
+.star-rules {
+  list-style: none;
+  padding: 0 !important;
+  margin: 4px 0 10px !important;
+  font-size: 13.5px !important;
+}
+.star-rules li {
+  display: flex;
+  gap: 8px;
+  color: var(--text);
+}
+.star-rules li span {
+  color: var(--accent);
+  width: 16px;
+}
+.star-rules li.no {
+  color: var(--muted);
+}
+.star-rules li.no span {
+  color: var(--muted);
+}
 .score {
   margin: 0 !important;
 }
