@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@import "./styles/fonts.css";
+@import "./styles/tokens.css";
+
+html, body { margin: 0; background: var(--pn-ground); color: var(--pn-text); -webkit-text-size-adjust: 100%; }
+html { scroll-behavior: smooth; }
+#root { min-height: 100dvh; }
+.pn-root { position: relative; min-height: 100dvh; overflow-x: hidden; }
+
+/* Page transitions: the old page fades out (160 ms), then the new one enters with .pn-screen.
+   The scene stack lives outside the page, so it never reloads; it crossfades between modes. */
+.pn-page { position: relative; z-index: 1; transition: opacity 160ms var(--pn-ease-out); }
+html[data-leaving] .pn-page { opacity: 0; }
+
+.pn-stage {
+  position: absolute; top: 0; left: 0; right: 0; height: max(880px, 100dvh); z-index: 0; pointer-events: none;
+  transition: opacity var(--pn-dur-scene) var(--pn-ease-inout), height var(--pn-dur-scene) var(--pn-ease-inout);
+}
+.pn-stage .pn-scene-stack { background: transparent; }
+.pn-stage[data-mode="none"] { opacity: 0; }
+.pn-stage[data-mode="start"] { opacity: 0.5; height: 100%; }
+.pn-stage[data-mode="results"] { opacity: 0.55; height: 720px; }
+.pn-stage .pn-scrim, .pn-stage .pn-scrim--soft { transition: opacity var(--pn-dur-scene) var(--pn-ease-inout); }
+.pn-stage[data-mode="landing"] .pn-scrim--soft, .pn-stage:not([data-mode="landing"]) .pn-scrim:not(.pn-scrim--soft) { opacity: 0; }
+@media (max-width: 720px) { .pn-stage[data-mode="landing"] { height: 560px; } }
+
+/* Scene markup comes from the design canvas: an absolutely placed div with one SVG. */
+.pn-scene { position: absolute; inset: 0; }
+
+/* The game page fills the window; the iframe sits under the 52 px bar. */
+.pn-play-fixed { position: fixed; inset: 0; z-index: 10; }
+.pn-frame { position: absolute; inset: 52px 0 0 0; width: 100%; height: calc(100% - 52px); border: 0; background: #000; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .pn-page, .pn-stage, .pn-stage .pn-scrim { transition: none !important; }
+}

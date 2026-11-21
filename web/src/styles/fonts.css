@@ -1,0 +1,12 @@
+/*
+ * Self-hosted fonts. No Google Fonts, no CDN.
+ * The @fontsource packages ship the woff2 files inside node_modules; Vite copies them
+ * into your own build, so the browser loads them from your site.
+ *
+ *   npm i @fontsource-variable/tektur @fontsource-variable/golos-text @fontsource-variable/jetbrains-mono
+ *
+ * All three: SIL Open Font License 1.1, full Cyrillic.
+ */
+@import "@fontsource-variable/tektur/standard.css"; /* weight + width axes */
+@import "@fontsource-variable/golos-text/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
