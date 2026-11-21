@@ -11,14 +11,23 @@ const TOAST_MS = 3200;
 export function Play({ game }: { game: Game }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [loaded, setLoaded] = useState(false);
-  const [toast, setToast] = useState<{ name: string; n: number } | null>(null);
+  const [toast, setToast] = useState<{ label: string; name: string; n: number } | null>(null);
+  // A finished chapter is recorded at once, but the player stays in the game: games with several chapters
+  // (or content after the ending) continue on their own. The results open from the bar or on leaving the game.
+  const [ended, setEnded] = useState(false);
+  const endedRef = useRef(false);
   const muted = useStore((s) => s.muted);
   const toggleMute = useStore((s) => s.toggleMute);
+  const results = `/results/${game.id}`;
 
   const { state, percent } = useGameHost(game.id, frame, {
-    end: () => navigate(`/results/${game.id}`),
-    exit: () => navigate('/games'),
-    achievement: (id) => setToast((t) => ({ name: game.achievementName(id), n: (t?.n ?? 0) + 1 })),
+    end: (run) => {
+      endedRef.current = true;
+      setEnded(true);
+      setToast((t) => ({ label: 'глава пройдена', name: `${'★'.repeat(run.stars)}${'☆'.repeat(3 - run.stars)} · ${game.endingName(run.ending)}`, n: (t?.n ?? 0) + 1 }));
+    },
+    exit: () => navigate(endedRef.current ? results : '/games'),
+    achievement: (id) => setToast((t) => ({ label: 'достижение', name: game.achievementName(id), n: (t?.n ?? 0) + 1 })),
   });
 
   useEffect(() => {
@@ -56,6 +65,11 @@ export function Play({ game }: { game: Game }) {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {ended && (
+            <Link to={results} className="pn-btn pn-btn--accent pn-btn--sm" data-testid="results-link">
+              Итоги главы <span className="pn-arrow" aria-hidden="true">→</span>
+            </Link>
+          )}
           <SaveStatus />
           <button className="pn-gamebar-btn" type="button" aria-pressed={!muted} onClick={onMute} data-testid="mute">
             <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
@@ -132,7 +146,7 @@ export function Play({ game }: { game: Game }) {
         <div className="pn-toast" role="status" key={toast.n} data-testid="toast">
           <Badge />
           <div>
-            <p className="pn-label pn-label--acc">достижение</p>
+            <p className="pn-label pn-label--acc">{toast.label}</p>
             <p style={{ margin: '3px 0 0', fontSize: 16, fontWeight: 600, color: 'var(--pn-text)' }}>{toast.name}</p>
           </div>
         </div>

@@ -158,7 +158,21 @@ const ctx = {
 };
 
 // ---------- Данные от сайта ----------
-const session = { nickname: 'Тест', difficulty: 'normal', save: null };
+// progress: последнее известное состояние, даже если игра пройдена целиком (для прогресса на стартовом экране).
+const session = { nickname: 'Тест', difficulty: 'normal', save: null, progress: null };
+
+const CHAPTER_TITLES = ['Первый рабочий день', 'Комната, которой нет', 'След предыдущего тестировщика', 'Последняя сборка'];
+
+// Главы для стартового экрана: пройденные (prev[n] или текущая с chapter_done), текущая и впереди.
+function chapterProgress(s) {
+  const done = new Set();
+  if (s && s.v === 1) {
+    for (const k of Object.keys(s.prev || {})) if (s.prev[k]) done.add(Number(k));
+    if (s.flags?.chapter_done) done.add(s.chapter);
+  }
+  const next = [1, 2, 3, 4].find((n) => !done.has(n));
+  return CHAPTER_TITLES.map((title, i) => ({ no: i + 1, title, state: done.has(i + 1) ? 'done' : i + 1 === next ? 'current' : 'locked' }));
+}
 
 function applyInit(data) {
   const nick = String(data?.nickname || '').trim().slice(0, 16);
@@ -168,7 +182,9 @@ function applyInit(data) {
   setMuted(!!data?.muted);
   let s = data?.save || null;
   if (!s && platform.standalone) s = loadLocalSave();
-  session.save = s && s.v === 1 && [1, 2, 3, 4].includes(s.chapter) && (!s.flags?.chapter_done || s.chapter < 4) ? s : null;
+  const valid = s && s.v === 1 && [1, 2, 3, 4].includes(s.chapter);
+  session.progress = valid ? s : null;
+  session.save = valid && (!s.flags?.chapter_done || s.chapter < 4) ? s : null;
 }
 
 platform.onCommand({
@@ -268,7 +284,7 @@ async function showStart() {
   load.setProgress(1);
   let fresh = false;
   for (;;) {
-    const a = await load.askStart({ canContinue: !!session.save, name: session.nickname });
+    const a = await load.askStart({ canContinue: !!session.save, name: session.nickname, chapters: chapterProgress(session.progress) });
     if (a === 'continue') {
       restoreGame(session.save, session.nickname, session.difficulty);
       // глава пройдена, но игрок не нажал «Дальше»: продолжаем следующей главой
@@ -340,6 +356,7 @@ async function endChapter(forceEnding) {
   save(false);
   platform.saveNow(game.state);
   platform.end({ ending: r.ending, stars: r.stars, score: r.score, durationSec: r.durationSec, choices: r.choices });
+  session.progress = JSON.parse(JSON.stringify(game.state)); // глава пройдена: это видно на стартовом экране
   const a = await screens.chapterEnd({ ...r, career, hasNext: no < 4 });
   screens.close();
   session.save = null;
@@ -369,6 +386,7 @@ async function endChapter(forceEnding) {
       else beginChapter4();
       platform.saveNow(game.state);
       session.save = JSON.parse(JSON.stringify(game.state));
+      session.progress = session.save;
     }
     platform.exit();
     stopChapter();
