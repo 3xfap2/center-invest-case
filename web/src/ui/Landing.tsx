@@ -1,120 +1,212 @@
-import { publicGames } from '../games/catalog';
-import { isDev } from '../router';
+import { useEffect, useRef } from 'react';
+import { publicGames, type Game } from '../games/catalog';
+import { isDev, navigate } from '../router';
 import { useStore } from '../state/store';
-import { GameFrame, GameTitle } from './GameArt';
-import { Link, TopBar, btnPrimary } from './parts';
+import { useUi } from '../state/ui';
+import { Scene } from './Scene';
+import { GameTitle, Logo, PlayIcon } from './parts';
 
 const STEPS = [
-  { n: '01', title: 'Ник вместо регистрации', text: 'Ни почты, ни телефона. Придумай имя и начинай.' },
-  { n: '02', title: 'Одна полная глава', text: 'Герои, которые помнят твои решения, и финал, который зависит от тебя.' },
-  { n: '03', title: 'Как в жизни', text: 'В конце карточка профессии: чем занимается специалист и где этому учат в Ростовской области.' },
+  { n: '01', title: 'Ник вместо регистрации', text: 'Придумай ник и выбери сложность. Ни почты, ни пароля.' },
+  { n: '02', title: 'Одна полная глава', text: 'Целая история от начала до финала, прямо в браузере. Прогресс сохраняется сам.' },
+  { n: '03', title: 'Как в жизни', text: 'В конце карточка профессии: чем занимается специалист и где этому учиться в Ростовской области.' },
 ];
+
+const HOVER_SELECT_MS = 220;
+const stories = (n: number) => `${n} ${n === 1 ? 'история' : n < 5 ? 'истории' : 'историй'}`;
 
 export function Landing() {
   const games = publicGames(isDev());
+  const selected = useUi((s) => s.selected);
+  const select = useUi((s) => s.select);
   const hasPlayer = useStore((s) => s.player !== null);
-  const start = (id?: string) => (hasPlayer ? (id ? `/play/${id}` : '/games') : id ? `/start?game=${id}` : '/start');
+  const game = games.find((g) => g.id === selected) ?? games[0];
+  const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
+
+  const startPath = (g?: Game) => (hasPlayer ? (g ? `/play/${g.id}` : '/games') : g ? `/start?game=${g.id}` : '/start');
+
+  function onShelfKey(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const i = games.findIndex((g) => g.id === game.id);
+    const j = (i + (e.key === 'ArrowRight' ? 1 : -1) + games.length) % games.length;
+    e.currentTarget.querySelectorAll<HTMLButtonElement>('button.pn-poster')[j]?.focus();
+    select(games[j].id);
+  }
 
   return (
-    <div className="screen-in">
-      <div className="relative">
-        <div className="nav-grid pointer-events-none absolute inset-0 -z-10" aria-hidden />
-        <TopBar />
+    <div className="pn-screen">
+      <section className="pn-hero" aria-label="Фильмотека">
+        <header className="pn-topbar pn-topbar--over pn-wrap" style={{ margin: '0 auto' }}>
+          <Logo />
+          <nav className="pn-nav" aria-label="Главное меню">
+            <a className="pn-nav-link" href="#how">
+              Как это устроено
+            </a>
+            <a className="pn-nav-link" href="#board">
+              Табло профессий
+            </a>
+            <a
+              className="pn-btn pn-btn--ghost pn-btn--sm"
+              href={startPath()}
+              style={{ marginLeft: 8 }}
+              data-testid="nav-start"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate(startPath());
+              }}
+            >
+              Начать
+            </a>
+          </nav>
+        </header>
 
-        {/* Hero */}
-        <section className="mx-auto grid max-w-6xl gap-12 px-5 pb-20 pt-10 md:grid-cols-12 md:px-12 md:pt-20">
-          <div className="md:col-span-7">
-            <p className="font-mono text-label uppercase tracking-[0.18em] text-ci-green">Сюжетные игры о профессиях · 12–15 лет</p>
-            <h1 className="mt-5 font-display text-hero-sm font-bold uppercase md:text-[5.25rem] md:leading-[0.95]">
-              Попробуй профессию до&nbsp;того, как выбрать
-            </h1>
-            <p className="mt-7 max-w-xl text-lead-lg text-text-2">
-              В каждой игре одна полная глава: живые герои, трудные решения и настоящая работа специалиста. Прямо в браузере, без регистрации.
+        <div className="pn-wrap pn-hero-inner">
+          {/* Keyed by game, so the label → title → hook → button stagger plays on every switch */}
+          <div className="pn-hero-copy" aria-live="polite" key={game.id} data-testid="hero">
+            <p className="pn-label pn-label--acc pn-swap-1" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="pn-dot pn-dot--acc" />
+              Профессия · {game.profession.toLowerCase()}
             </p>
-            <div className="mt-9 flex flex-wrap items-center gap-5">
-              <Link to={start()} className={btnPrimary} data-testid="cta-play">
-                Играть
-              </Link>
-              <span className="font-mono text-small text-muted">нужен только ник</span>
+            <h1 className="pn-hero-title pn-swap-2">
+              <GameTitle game={game} />
+            </h1>
+            <p className="pn-hook pn-swap-3">{game.hook}</p>
+            <ul className="pn-meta pn-swap-3">
+              <li>{game.minutes} мин</li>
+              <li>{game.controls}</li>
+              <li>{game.place}</li>
+            </ul>
+            <div className="pn-cta pn-swap-4">
+              {game.available ? (
+                <>
+                  <a
+                    className="pn-btn pn-btn--accent pn-btn--lg"
+                    href={startPath(game)}
+                    data-testid="cta-play"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(startPath(game));
+                    }}
+                  >
+                    <PlayIcon />
+                    Играть
+                  </a>
+                  <span className="pn-cta-note">Без регистрации. Нужен только ник.</span>
+                </>
+              ) : (
+                <>
+                  <button className="pn-btn pn-btn--lg" type="button" disabled>
+                    Скоро
+                  </button>
+                  <span className="pn-cta-note">Глава в работе. Следи за табло ниже.</span>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Departure board: the platform grows one profession at a time */}
-          <aside className="self-end md:col-span-5" aria-label="Профессии на платформе">
-            <p className="mb-3 font-mono text-caption uppercase tracking-[0.2em] text-muted">Профессии · отправление</p>
-            <ul className="font-mono text-small">
+          <div className="pn-shelf">
+            <div className="pn-shelf-head">
+              <p className="pn-label pn-label--text">Фильмотека · {stories(games.length)}</p>
+              <p className="pn-label pn-shelf-hint">Tab или ← → чтобы выбрать</p>
+            </div>
+            <div className="pn-posters" role="group" aria-label="Игры" onKeyDown={onShelfKey}>
               {games.map((g) => (
-                <li key={g.id} className="board-row flex items-center justify-between gap-4 py-3">
-                  <span className="text-text">{g.profession}</span>
-                  <span className={`flex shrink-0 items-center gap-2 uppercase ${g.available ? 'text-ci-green' : 'text-ai'}`}>
-                    {g.available && <span className="live-dot size-1.5 rounded-full bg-ci-green" aria-hidden />}
+                <button
+                  key={g.id}
+                  type="button"
+                  className={`pn-poster ${g.id === game.id ? 'is-selected' : ''} ${g.available ? '' : 'is-soon'}`}
+                  aria-pressed={g.id === game.id}
+                  style={{ '--p-acc': g.accent } as React.CSSProperties}
+                  onClick={() => select(g.id)}
+                  onFocus={() => select(g.id)}
+                  onMouseEnter={() => {
+                    clearTimeout(hoverTimer.current);
+                    hoverTimer.current = setTimeout(() => select(g.id), HOVER_SELECT_MS);
+                  }}
+                  onMouseLeave={() => clearTimeout(hoverTimer.current)}
+                  data-testid={`game-${g.id}`}
+                >
+                  <span className="pn-poster-art">
+                    <Scene id={g.scene} />
+                  </span>
+                  <span className="pn-poster-shade" />
+                  <span className="pn-poster-mark">сейчас</span>
+                  <span className="pn-poster-body">
+                    <span className="pn-poster-prof">{g.prof}</span>
+                    <span className="pn-poster-title">
+                      <GameTitle game={g} sub={false} />
+                    </span>
+                    <span className="pn-poster-status">
+                      <span className={`pn-dot ${g.available ? 'pn-live' : 'pn-dot--off'}`} />
+                      {g.available ? `посадка · ${g.minutes} мин` : 'скоро'}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <main className="pn-wrap">
+        <div className="pn-info">
+          <section id="how" aria-labelledby="how-h">
+            <h2 id="how-h" className="pn-h2" style={{ marginBottom: 28 }}>
+              Как это устроено
+            </h2>
+            <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {STEPS.map((s) => (
+                <li key={s.n} className="pn-step">
+                  <span className="pn-step-num" aria-hidden="true">
+                    {s.n}
+                  </span>
+                  <div>
+                    <h3 className="pn-step-title">{s.title}</h3>
+                    <p className="pn-step-text">{s.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section id="board" className="pn-board" aria-labelledby="board-h">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
+              <h2 id="board-h" className="pn-label pn-label--text" style={{ fontSize: 13 }}>
+                Профессии · отправление
+              </h2>
+              <span className="pn-label">одна за другой</span>
+            </div>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {games.map((g, i) => (
+                <li key={g.id} className="pn-board-row">
+                  <span className="pn-flap">{String(i + 1).padStart(2, '0')}</span>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <span style={{ color: 'var(--pn-text)', fontSize: 15 }}>{g.profession}</span>
+                    <span style={{ color: 'var(--pn-text-3)', fontSize: 12 }}>{g.title}</span>
+                  </span>
+                  <span className="pn-board-status" style={{ color: g.available ? 'var(--pn-green)' : 'var(--pn-text-3)' }}>
+                    <span className={`pn-dot ${g.available ? 'pn-live' : 'pn-dot--off'}`} />
                     {g.available ? 'посадка' : 'скоро'}
                   </span>
                 </li>
               ))}
-              <li className="board-row flex items-center justify-between gap-4 py-3 text-muted">
-                <span>Следующая профессия</span>
-                <span className="uppercase">по плану</span>
+              <li className="pn-board-row" style={{ color: 'var(--pn-text-3)' }}>
+                <span className="pn-flap" style={{ color: 'var(--pn-text-3)' }}>
+                  ··
+                </span>
+                <span style={{ fontSize: 15 }}>Следующая профессия</span>
+                <span className="pn-board-status">по плану</span>
               </li>
             </ul>
-          </aside>
-        </section>
-      </div>
-
-      {/* Games as an editorial index */}
-      <section className="mx-auto max-w-6xl px-5 md:px-12" aria-label="Игры">
-        {games.map((g, i) => (
-          <article key={g.id} className="grid gap-8 border-t border-line py-14 md:grid-cols-12 md:gap-10" data-testid={`game-${g.id}`}>
-            <div className="font-display text-h1 font-bold text-line-strong md:col-span-1">{String(i + 1).padStart(2, '0')}</div>
-            <div className="md:col-span-5">
-              <p className="font-mono text-label uppercase tracking-[0.16em] text-ci-green">{g.profession}</p>
-              <h2 className="mt-3 font-display text-h1 font-bold uppercase leading-none">
-                <GameTitle game={g} live />
-              </h2>
-              <p className="mt-5 max-w-md text-lead text-text-2">{g.hook}</p>
-              <p className="mt-5 font-mono text-small text-muted">
-                {g.minutes}
-                {g.controls ? ` · ${g.controls}` : ''}
-              </p>
-              <div className="mt-7">
-                {g.available ? (
-                  <Link to={start(g.id)} className={btnPrimary}>
-                    Играть
-                  </Link>
-                ) : (
-                  <span className="inline-flex rounded-md border border-dashed border-line-strong px-5 py-3 font-display uppercase tracking-wide text-muted">
-                    скоро
-                  </span>
-                )}
-              </div>
-            </div>
-            <GameFrame game={g} className="md:col-span-6" />
-          </article>
-        ))}
-      </section>
-
-      {/* How it works */}
-      <section className="mx-auto max-w-6xl px-5 md:px-12">
-        <div className="border-t border-line py-16">
-        <h2 className="font-display text-h2 font-bold uppercase">Как это устроено</h2>
-        <ol className="mt-10 grid gap-10 md:grid-cols-3">
-          {STEPS.map((s) => (
-            <li key={s.n} className="border-l-2 border-ci-green pl-5">
-              <span className="font-mono text-small text-ci-green">{s.n}</span>
-              <h3 className="mt-2 font-display text-h3 font-semibold uppercase">{s.title}</h3>
-              <p className="mt-3 text-body text-text-2">{s.text}</p>
-            </li>
-          ))}
-        </ol>
+          </section>
         </div>
-      </section>
-
-      <footer className="border-t border-line bg-bg-deep">
-        <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-4 px-5 py-8 font-mono text-caption text-muted md:px-12">
+        <footer className="pn-footer">
           <span>ПрофНавигатор · кейс банка «Центр-инвест» «ПрофНавигатор: выбери профессию будущего»</span>
           <span>Cyber Garden School 2026</span>
-        </div>
-      </footer>
+        </footer>
+      </main>
     </div>
   );
 }

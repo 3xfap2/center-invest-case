@@ -13,11 +13,31 @@ const subscribe = (f: () => void) => {
 };
 const snapshot = () => location.pathname + location.search;
 
+const LEAVE_MS = 160;
+let leaving: ReturnType<typeof setTimeout> | null = null;
+const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+function go(to: string, replace: boolean) {
+  history[replace ? 'replaceState' : 'pushState'](null, '', to);
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  listeners.forEach((f) => f());
+}
+
+/** Changes the page. A user navigation first fades the old page out (160 ms); redirects (replace) are instant. */
 export function navigate(to: string, opts: { replace?: boolean } = {}) {
   if (to === snapshot()) return;
-  history[opts.replace ? 'replaceState' : 'pushState'](null, '', to);
-  window.scrollTo(0, 0);
-  listeners.forEach((f) => f());
+  if (leaving) clearTimeout(leaving);
+  if (opts.replace || reducedMotion()) {
+    document.documentElement.removeAttribute('data-leaving');
+    go(to, !!opts.replace);
+    return;
+  }
+  document.documentElement.setAttribute('data-leaving', '');
+  leaving = setTimeout(() => {
+    leaving = null;
+    go(to, false);
+    document.documentElement.removeAttribute('data-leaving');
+  }, LEAVE_MS);
 }
 
 export type Route =

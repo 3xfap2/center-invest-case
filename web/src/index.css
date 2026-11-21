@@ -2,84 +2,36 @@
 @import "./styles/fonts.css";
 @import "./styles/tokens.css";
 
-body {
-  margin: 0;
-  background: var(--ns-bg);
-  color: var(--ns-text);
-  font-family: var(--ns-font-body);
-  -webkit-text-size-adjust: 100%;
+html, body { margin: 0; background: var(--pn-ground); color: var(--pn-text); -webkit-text-size-adjust: 100%; }
+html { scroll-behavior: smooth; }
+#root { min-height: 100dvh; }
+.pn-root { position: relative; min-height: 100dvh; overflow-x: hidden; }
+
+/* Page transitions: the old page fades out (160 ms), then the new one enters with .pn-screen.
+   The scene stack lives outside the page, so it never reloads; it crossfades between modes. */
+.pn-page { position: relative; z-index: 1; transition: opacity 160ms var(--pn-ease-out); }
+html[data-leaving] .pn-page { opacity: 0; }
+
+.pn-stage {
+  position: absolute; top: 0; left: 0; right: 0; height: max(880px, 100dvh); z-index: 0; pointer-events: none;
+  transition: opacity var(--pn-dur-scene) var(--pn-ease-inout), height var(--pn-dur-scene) var(--pn-ease-inout);
 }
+.pn-stage .pn-scene-stack { background: transparent; }
+.pn-stage[data-mode="none"] { opacity: 0; }
+.pn-stage[data-mode="start"] { opacity: 0.5; height: 100%; }
+.pn-stage[data-mode="results"] { opacity: 0.55; height: 720px; }
+.pn-stage .pn-scrim, .pn-stage .pn-scrim--soft { transition: opacity var(--pn-dur-scene) var(--pn-ease-inout); }
+.pn-stage[data-mode="landing"] .pn-scrim--soft, .pn-stage:not([data-mode="landing"]) .pn-scrim:not(.pn-scrim--soft) { opacity: 0; }
+@media (max-width: 720px) { .pn-stage[data-mode="landing"] { height: 560px; } }
 
-/* Display type: Tektur, a little condensed */
-.font-display { font-stretch: 88%; }
+/* Scene markup comes from the design canvas: an absolutely placed div with one SVG. */
+.pn-scene { position: absolute; inset: 0; }
 
-/* Faint navigation grid behind the hero, fading out */
-.nav-grid {
-  background-image:
-    linear-gradient(to right, rgba(80, 184, 72, 0.07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(80, 184, 72, 0.07) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: radial-gradient(ellipse 80% 70% at 30% 0%, #000 0%, transparent 80%);
-}
-
-/* Grain on game frames */
-.grain::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.08;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-}
-
-/* GLITCH: the title splits into red and cyan channels, like a broken build */
-.title-glitch { text-shadow: -0.045em 0 rgba(255, 90, 90, 0.85), 0.045em 0 rgba(90, 210, 255, 0.85); }
-@keyframes glitch-jump {
-  0%, 92%, 100% { transform: none; clip-path: none; }
-  93% { transform: translateX(-0.04em); clip-path: inset(10% 0 55% 0); }
-  95% { transform: translateX(0.05em); clip-path: inset(60% 0 8% 0); }
-  97% { transform: none; clip-path: inset(30% 0 40% 0); }
-}
-.title-glitch-live { animation: glitch-jump 4s steps(1) infinite; }
-
-/* Чужое имя: the name is crossed out by a redaction bar */
-.redact { position: relative; white-space: nowrap; }
-.redact::after {
-  content: '';
-  position: absolute;
-  left: -0.06em;
-  right: -0.06em;
-  top: 52%;
-  height: 0.16em;
-  background: var(--ns-threat);
-  transform: rotate(-2deg);
-}
-
-/* Departure-board rows on the landing */
-.board-row { border-top: 1px dashed var(--ns-line); }
-@keyframes live { 0% { box-shadow: 0 0 0 0 rgba(80, 184, 72, 0.6) } 100% { box-shadow: 0 0 0 8px rgba(80, 184, 72, 0) } }
-.live-dot { animation: live 1.6s ease-out infinite; }
-
-.cta { transition: transform 160ms var(--ns-ease-out), box-shadow 200ms, background-color 160ms; }
-.cta:hover { box-shadow: 0 0 0 1px rgba(80, 184, 72, 0.6), 0 10px 32px -8px rgba(80, 184, 72, 0.6); }
-.cta:active { transform: translateY(1px) scale(0.98); }
-
-.row-link { transition: background-color 200ms; }
-.row-link:hover .row-arrow { transform: translateX(6px); }
-.row-arrow { display: inline-block; transition: transform 200ms var(--ns-ease-out); }
-
-@keyframes screen-in { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
-.screen-in { animation: screen-in 0.35s var(--ns-ease-out) both; }
-
-@keyframes toast { 0% { transform: translateY(-120%); opacity: 0 } 10%, 85% { transform: none; opacity: 1 } 100% { transform: translateY(-120%); opacity: 0 } }
-.toast { animation: toast 3.2s var(--ns-ease-out) both; }
-
-@keyframes load-bar { from { transform: translateX(-100%) } to { transform: translateX(250%) } }
-.load-bar { animation: load-bar 1.2s ease-in-out infinite; }
-
-@keyframes star-in { from { transform: scale(1.8) rotate(-12deg); opacity: 0 } to { transform: none; opacity: 1 } }
-.star-in { display: inline-block; animation: star-in 0.4s var(--ns-ease-stamp) both; }
+/* The game page fills the window; the iframe sits under the 52 px bar. */
+.pn-play-fixed { position: fixed; inset: 0; z-index: 10; }
+.pn-frame { position: absolute; inset: 52px 0 0 0; width: 100%; height: calc(100% - 52px); border: 0; background: #000; }
 
 @media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+  .pn-page, .pn-stage, .pn-stage .pn-scrim { transition: none !important; }
 }

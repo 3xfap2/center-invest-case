@@ -27,13 +27,25 @@ async function startAs(page: Page, nickname: string, difficulty: 'Лёгкий' 
 
 const saved = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('profnav-save') ?? 'null')?.state);
 
-test('landing shows both games and sends to the start screen', async ({ page }) => {
+test('landing: the poster shelf switches the hero, by mouse and keyboard, and leads to the start screen', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Попробуй профессию');
+  for (const id of ['chuzhoe-imya', 'glitch', 'kompas', 'dym']) await expect(page.getByTestId(`game-${id}`)).toBeVisible();
   await expect(page.getByTestId('game-glitch')).toContainText('Тестировщик игр');
-  await expect(page.getByTestId('game-chuzhoe-imya')).toContainText('мошенничеству');
   await expect(page.getByTestId('game-mock')).toHaveCount(0);
-  await page.getByTestId('cta-play').click();
+
+  await page.getByTestId('game-glitch').click();
+  await expect(page.getByTestId('game-glitch')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('GLITCH');
+  await expect(page.getByTestId('hero')).toContainText('Завтра релиз');
+
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByTestId('game-kompas')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('game-kompas')).toBeFocused();
+  await expect(page.getByTestId('hero')).toContainText('Пять подростков');
+  // A game that isn't built yet can't be started.
+  await expect(page.getByTestId('hero').getByRole('button', { name: 'Скоро' })).toBeDisabled();
+
+  await page.getByTestId('nav-start').click();
   await expect(page).toHaveURL('/start');
 });
 
@@ -66,8 +78,8 @@ test('end shows the results with the new achievement', async ({ page }) => {
   await expect(page).toHaveURL('/results/mock');
   await expect(page.getByTestId('ending')).toHaveText('good');
   await expect(page.getByTestId('results')).toContainText('1:35');
-  await expect(page.getByTestId('results')).toContainText('mk_first_click');
-  await expect(page.getByTestId('results')).toContainText('новое');
+  await expect(page.getByTestId('achievements')).toContainText('mk_first_click');
+  await expect(page.getByTestId('achievements')).toContainText('новое');
   await expect(page.getByText('Таблица появится, когда сервер будет доступен')).toBeVisible();
   await page.getByRole('button', { name: 'Сыграть ещё' }).click();
   await expect(page).toHaveURL('/play/mock');

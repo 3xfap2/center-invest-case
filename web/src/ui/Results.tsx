@@ -5,7 +5,8 @@ import type { Game } from '../games/catalog';
 import { navigate } from '../router';
 import { lastRun } from '../state/logic';
 import { useStore } from '../state/store';
-import { DIFFICULTY, Link, Stars, TopBar, btnPrimary, btnSecondary, fmtTime } from './parts';
+import { Badge, DIFFICULTY, Link, Stars, TopBar, fmtNum, fmtTime } from './parts';
+import { EmptyState } from './NotFound';
 
 export function Results({ game }: { game: Game }) {
   const run = useStore((s) => lastRun(s, game.id));
@@ -30,70 +31,45 @@ export function Results({ game }: { game: Game }) {
 
   if (!run) {
     return (
-      <div className="min-h-dvh">
-        <TopBar />
-        <main className="mx-auto max-w-3xl px-5 py-16 md:px-12">
-          <h1 className="font-display text-h2 font-bold uppercase">Здесь пока пусто</h1>
-          <p className="mt-4 text-text-2">Пройди главу до конца, и здесь появится результат.</p>
-          <Link to="/games" className={`${btnPrimary} mt-8`}>
-            К играм
+      <EmptyState
+        icon="stars"
+        title="Здесь пока пусто"
+        text="Пройди любую главу, и итоги появятся здесь."
+        action={
+          <Link to="/games" className="pn-btn pn-btn--green pn-btn--lg">
+            К играм <span className="pn-arrow" aria-hidden="true">→</span>
           </Link>
-        </main>
-      </div>
+        }
+      />
     );
   }
 
   return (
-    <div className="screen-in min-h-dvh">
+    <div className="pn-screen" style={{ position: 'relative' }}>
       <TopBar />
-      <main className="mx-auto grid max-w-6xl gap-14 px-5 pb-20 pt-6 md:grid-cols-12 md:px-12 md:pt-12">
-        <section className="md:col-span-7" data-testid="results">
-          <p className="font-mono text-label uppercase tracking-[0.18em] text-ci-green">
-            {game.title} · глава пройдена
-          </p>
-          <h1 className="mt-4 font-display text-hero-sm font-bold uppercase md:text-hero" data-testid="ending">
+      <main className="pn-wrap" style={{ position: 'relative', zIndex: 2, paddingTop: 64, paddingBottom: 88 }}>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 22, marginBottom: 72 }} data-testid="results">
+          <p className="pn-label pn-label--acc">{game.title} · глава пройдена</p>
+          <h1 className="pn-ending" data-testid="ending">
             {game.endingName(run.ending)}
           </h1>
-          <div className="mt-6 text-h1">
-            <Stars n={run.stars} animate />
-          </div>
-
-          <dl className="mt-10 grid max-w-lg grid-cols-3 border-y border-line font-mono">
+          <Stars n={run.stars} />
+          <dl className="pn-facts">
             {[
               ['время', fmtTime(run.durationSec)],
-              ['очки', String(run.score)],
+              ['очки', fmtNum(run.score)],
               ['сложность', DIFFICULTY[run.difficulty].label.toLowerCase()],
             ].map(([k, v]) => (
-              <div key={k} className="py-4">
-                <dt className="text-caption uppercase tracking-widest text-muted">{k}</dt>
-                <dd className="mt-1 text-lead text-text">{v}</dd>
+              <div key={k} className="pn-fact">
+                <dt className="pn-label">{k}</dt>
+                <dd>{v}</dd>
               </div>
             ))}
           </dl>
-
-          <h2 className="mt-12 font-display text-h3 font-semibold uppercase">Достижения</h2>
-          {owned.length === 0 ? (
-            <p className="mt-3 text-text-2">Пока ни одного. В следующий раз попробуй другие решения.</p>
-          ) : (
-            <ul className="mt-4 flex flex-wrap gap-2">
-              {owned.map((a) => {
-                const fresh = run.earned.includes(a);
-                return (
-                  <li
-                    key={a}
-                    className={`rounded-sm border px-3 py-1.5 font-mono text-small ${fresh ? 'border-ci-green text-text' : 'border-line text-text-2'}`}
-                  >
-                    {game.achievementName(a)}
-                    {fresh && <span className="ml-2 text-caption uppercase text-ci-green">новое</span>}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-
-          <div className="mt-12 flex flex-wrap gap-3">
+          <div className="pn-actions" style={{ marginTop: 10 }}>
             <button
-              className={btnPrimary}
+              className="pn-btn pn-btn--accent pn-btn--lg"
+              type="button"
               onClick={() => {
                 resetGame(game.id);
                 navigate(`/play/${game.id}`);
@@ -101,33 +77,92 @@ export function Results({ game }: { game: Game }) {
             >
               Сыграть ещё
             </button>
-            <Link to="/games" className={btnSecondary}>
+            <Link to="/games" className="pn-btn pn-btn--ghost pn-btn--lg">
               Другая игра
             </Link>
           </div>
         </section>
 
-        <aside className="md:col-span-5" aria-label="Лучшие результаты">
-          <h2 className="font-display text-h3 font-semibold uppercase">Лучшие результаты</h2>
-          {board === null ? (
-            <p className="mt-3 text-small text-muted">
-              {online ? 'Загружаем…' : 'Таблица появится, когда сервер будет доступен. Твой результат сохранён на этом устройстве.'}
-            </p>
-          ) : board.length === 0 ? (
-            <p className="mt-3 text-small text-muted">Ты можешь стать первым.</p>
-          ) : (
-            <ol className="mt-4 font-mono text-small" data-testid="leaderboard">
-              {board.map((r, i) => (
-                <li key={`${r.nickname}-${i}`} className={`board-row flex items-center gap-4 py-2.5 ${r.nickname === nickname ? 'text-ci-green' : 'text-text-2'}`}>
-                  <span className="w-6 text-muted">{i + 1}</span>
-                  <span className="flex-1 truncate">{r.nickname}</span>
-                  <span>{r.score}</span>
-                  <Stars n={r.stars} />
-                </li>
-              ))}
-            </ol>
-          )}
-        </aside>
+        <div className="pn-results-grid">
+          <section aria-labelledby="ach-h" data-testid="achievements">
+            <h2 id="ach-h" className="pn-h2" style={{ fontSize: 28, marginBottom: 18 }}>
+              Достижения
+            </h2>
+            {owned.length === 0 ? (
+              <p className="pn-empty-note" style={{ margin: 0 }}>
+                Пока ни одного. В следующий раз попробуй другие решения.
+              </p>
+            ) : (
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                {owned.map((a) => {
+                  const fresh = run.earned.includes(a);
+                  return (
+                    <li key={a} className="pn-ach">
+                      <Badge color={fresh ? 'var(--accent)' : 'var(--pn-green)'} />
+                      <p style={{ margin: 0, fontWeight: 600, color: 'var(--pn-text)', minWidth: 0 }}>{game.achievementName(a)}</p>
+                      {fresh ? <span className="pn-new">новое</span> : <span />}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <section aria-labelledby="lb-h">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 18 }}>
+              <h2 id="lb-h" className="pn-h2" style={{ fontSize: 28 }}>
+                Лучшие результаты
+              </h2>
+              <span className="pn-label">топ-10 · {game.title}</span>
+            </div>
+            {board === null ? (
+              <div className="pn-empty-note" style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                <span className={`pn-dot ${online ? '' : 'pn-dot--warn'}`} style={{ marginTop: 8 }} />
+                <p style={{ margin: 0 }}>
+                  {online ? 'Загружаем таблицу…' : 'Таблица появится, когда сервер будет доступен. Твой результат сохранён на этом устройстве.'}
+                </p>
+              </div>
+            ) : board.length === 0 ? (
+              <p className="pn-empty-note" style={{ margin: 0 }}>
+                Ты можешь стать первым.
+              </p>
+            ) : (
+              <div className="pn-table-box">
+                <table className="pn-table" data-testid="leaderboard">
+                  <thead>
+                    <tr>
+                      <th scope="col" style={{ width: 56 }}>
+                        место
+                      </th>
+                      <th scope="col">ник</th>
+                      <th scope="col" style={{ textAlign: 'right' }}>
+                        очки
+                      </th>
+                      <th scope="col" style={{ textAlign: 'right' }}>
+                        звёзды
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {board.map((r, i) => (
+                      <tr key={`${r.nickname}-${i}`} className={r.nickname === nickname ? 'is-me' : ''}>
+                        <td className="num">{i + 1}</td>
+                        <td>{r.nickname}</td>
+                        <td className="num" style={{ textAlign: 'right' }}>
+                          {fmtNum(r.score)}
+                        </td>
+                        <td style={{ textAlign: 'right', color: 'var(--accent)', letterSpacing: '0.1em' }}>
+                          <span aria-hidden="true">{'★'.repeat(r.stars) + '☆'.repeat(Math.max(0, 3 - r.stars))}</span>
+                          <span className="sr-only">{r.stars} из 3</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
       </main>
     </div>
   );

@@ -1,8 +1,8 @@
 import { publicGames } from '../games/catalog';
 import { isDev, navigate } from '../router';
 import { useStore } from '../state/store';
-import { GameTitle } from './GameArt';
-import { TopBar, btnPrimary, btnSecondary } from './parts';
+import { Scene } from './Scene';
+import { GameTitle, PlayIcon, TopBar } from './parts';
 
 export function GameSelect() {
   const games = publicGames(isDev());
@@ -10,57 +10,103 @@ export function GameSelect() {
   const resetGame = useStore((s) => s.resetGame);
 
   return (
-    <div className="screen-in min-h-dvh">
+    <div className="pn-screen" style={{ position: 'relative' }}>
+      <div className="pn-grid-bg" aria-hidden="true" />
       <TopBar />
-      <main className="mx-auto max-w-6xl px-5 pb-20 pt-6 md:px-12 md:pt-12">
-        <h1 className="font-display text-h1 font-bold uppercase">Выбери профессию</h1>
-        <ul className="mt-10">
+      <main className="pn-wrap" style={{ position: 'relative', zIndex: 1, paddingTop: 28, paddingBottom: 72 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px 32px', flexWrap: 'wrap', marginBottom: 36 }}>
+          <div>
+            <p className="pn-label pn-label--acc" style={{ marginBottom: 14 }}>
+              Фильмотека
+            </p>
+            <h1 className="pn-h1">Выбери профессию</h1>
+          </div>
+          <p className="pn-hint" style={{ maxWidth: '38ch' }}>
+            Одна профессия, одна полная глава. Начатая игра продолжится с того же места.
+          </p>
+        </div>
+
+        <div className="pn-select-grid">
           {games.map((g) => {
             const save = saves[g.id];
-            const started = !!save?.data;
-            const percent = save?.progress?.percent ?? 0;
+            const started = g.available && !!save?.data;
+            const percent = Math.round(save?.progress?.percent ?? 0);
+            const ach = save?.achievements.length ?? 0;
             return (
-              <li key={g.id} className="grid items-center gap-6 border-t border-line py-8 md:grid-cols-12" data-testid={`select-${g.id}`}>
-                <div className="md:col-span-7">
-                  <p className="font-mono text-label uppercase tracking-[0.16em] text-ci-green">{g.profession}</p>
-                  <h2 className="mt-2 font-display text-h2 font-bold uppercase">
-                    <GameTitle game={g} />
-                  </h2>
-                  <p className="mt-3 max-w-xl text-body text-text-2">{g.hook}</p>
-                  <p className="mt-3 font-mono text-small text-muted">
-                    {g.minutes}
-                    {save?.achievements.length ? ` · достижений: ${save.achievements.length}` : ''}
-                  </p>
+              <article
+                key={g.id}
+                className={`pn-game ${g.available ? '' : 'is-soon'}`}
+                style={{ '--p-acc': g.accent, '--accent': g.accent } as React.CSSProperties}
+                aria-label={g.title}
+                data-testid={`select-${g.id}`}
+              >
+                <div className="pn-game-art">
+                  <span className="pn-poster-art">
+                    <Scene id={g.scene} />
+                  </span>
+                  <span className="pn-poster-shade" />
+                  <div className="pn-game-over">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      <span className="pn-tag">{g.prof}</span>
+                      <span className="pn-tag" style={{ color: !g.available ? 'var(--pn-text-3)' : ach > 0 ? g.accent : 'var(--pn-text-2)' }}>
+                        {g.available ? `достижений: ${ach}` : 'скоро'}
+                      </span>
+                    </div>
+                    <h2 className="pn-game-title">
+                      <GameTitle game={g} subSize="0.4em" />
+                    </h2>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 md:col-span-5 md:justify-end">
-                  {!g.available ? (
-                    <span className="font-display uppercase tracking-wide text-muted">скоро</span>
-                  ) : started ? (
-                    <>
-                      <span className="w-full font-mono text-small text-text-2 md:text-right">пройдено {Math.round(percent)}%</span>
-                      <button className={btnPrimary} onClick={() => navigate(`/play/${g.id}`)}>
-                        Продолжить
-                      </button>
-                      <button
-                        className={btnSecondary}
-                        onClick={() => {
-                          resetGame(g.id);
-                          navigate(`/play/${g.id}`);
-                        }}
-                      >
-                        Начать заново
-                      </button>
-                    </>
-                  ) : (
-                    <button className={btnPrimary} onClick={() => navigate(`/play/${g.id}`)}>
-                      Играть
-                    </button>
+                <div className="pn-game-body">
+                  <p style={{ margin: 0, color: 'var(--pn-text-2)', fontSize: 17, lineHeight: 1.45 }}>{g.hook}</p>
+                  <ul className="pn-meta">
+                    <li>{g.minutes} мин</li>
+                    <li>{g.controls}</li>
+                  </ul>
+                  {started && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <span className="pn-label pn-label--text">пройдено {percent}%</span>
+                      <div className="pn-bar" role="progressbar" aria-label="Прогресс главы" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+                        <span style={{ width: `${percent}%` }} />
+                      </div>
+                    </div>
                   )}
+                  <div className="pn-actions">
+                    {!g.available ? (
+                      <>
+                        <button className="pn-btn" type="button" disabled>
+                          скоро
+                        </button>
+                        <span className="pn-hint">Глава в работе.</span>
+                      </>
+                    ) : started ? (
+                      <>
+                        <button className="pn-btn pn-btn--accent" type="button" onClick={() => navigate(`/play/${g.id}`)}>
+                          Продолжить <span className="pn-arrow" aria-hidden="true">→</span>
+                        </button>
+                        <button
+                          className="pn-btn pn-btn--ghost"
+                          type="button"
+                          onClick={() => {
+                            resetGame(g.id);
+                            navigate(`/play/${g.id}`);
+                          }}
+                        >
+                          Начать заново
+                        </button>
+                      </>
+                    ) : (
+                      <button className="pn-btn pn-btn--accent" type="button" onClick={() => navigate(`/play/${g.id}`)}>
+                        <PlayIcon size={14} />
+                        Играть
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </li>
+              </article>
             );
           })}
-        </ul>
+        </div>
       </main>
     </div>
   );
