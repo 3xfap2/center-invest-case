@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"math"
+	"math/big"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -27,6 +29,49 @@ func validAchievement(a Achievement) bool {
 	p, ok := achievementPrefix[a.GameID]
 	return ok && achievementRe.MatchString(a.ID) && strings.HasPrefix(a.ID, p)
 }
+
+// ---- secret login keys: «K7MX-2QPA-9RTD» ----
+
+// No 0/O, 1/I/L: nothing a teen can misread when writing the key down. 31 symbols × 12 = about 59 bits.
+const keyAlphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+const keyLen = 12
+
+// Russian-layout letters that look like Latin ones are read as Latin, so a key typed on a Russian keyboard still works.
+var cyrToLat = strings.NewReplacer("А", "A", "В", "B", "Е", "E", "К", "K", "М", "M", "Н", "H", "Р", "P", "С", "C", "Т", "T", "У", "Y", "Х", "X")
+
+func newKey() (string, error) {
+	b := make([]byte, keyLen)
+	for i := range b {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(keyAlphabet))))
+		if err != nil {
+			return "", err
+		}
+		b[i] = keyAlphabet[n.Int64()]
+	}
+	return string(b), nil
+}
+
+// normalizeKey accepts any case, spaces, dashes and Cyrillic look-alikes. "" if it can't be a key.
+func normalizeKey(s string) string {
+	if len(s) > 100 {
+		return ""
+	}
+	var out strings.Builder
+	for _, r := range cyrToLat.Replace(strings.ToUpper(s)) {
+		if strings.ContainsRune(keyAlphabet, r) {
+			out.WriteRune(r)
+		} else if r != ' ' && r != '-' {
+			return ""
+		}
+	}
+	if out.Len() != keyLen {
+		return ""
+	}
+	return out.String()
+}
+
+// formatKey shows a key in three groups of four: «K7MX-2QPA-9RTD».
+func formatKey(k string) string { return k[0:4] + "-" + k[4:8] + "-" + k[8:12] }
 
 // loginKey makes nickname logins case-insensitive: «Аня», «аня» and «АНЯ» are one account; «ё» = «е».
 func loginKey(nickname string) string {

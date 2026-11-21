@@ -21,58 +21,27 @@ var errNotFound = errors.New("not found")
 // migrations run in order, each in its own transaction; PRAGMA user_version remembers how many have been applied.
 type migration func(tx *sql.Tx) error
 
-var migrations = []migration{sqlStep(sqlMigrations[0]), sqlStep(sqlMigrations[1]), uniqueNicknames, sqlStep(transferCodes)}
+var migrations = []migration{sqlStep(sqlMigrations[0]), sqlStep(sqlMigrations[1]), uniqueNicknames, sqlStep(loginKeys)}
 
-// 4: one-time codes to move a player to another device without a password.
-const transferCodes = `CREATE TABLE transfer_codes (
-	player_id   TEXT PRIMARY KEY REFERENCES players(id) ON DELETE CASCADE,
-	code_hash   BLOB NOT NULL,
-	expires_at  TEXT NOT NULL,
-	attempts    INTEGER NOT NULL DEFAULT 0
-);`
+// 4: every player gets a secret login key (generated, unique), to sign in on another device with nothing else.
+const loginKeys = `ALTER TABLE players ADD COLUMN key_hash BLOB;
+CREATE UNIQUE INDEX players_key ON players (key_hash) WHERE key_hash IS NOT NULL;`
 
-// MaxCodeAttempts wrong tries end a transfer code.
-const MaxCodeAttempts = 5
-
-// SetTransferCode gives the player one active code (a new one replaces the old).
-func (s *Store) SetTransferCode(ctx context.Context, playerID string, codeHash []byte, expiresAt string) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO transfer_codes (player_id, code_hash, expires_at, attempts) VALUES (?, ?, ?, 0)
-		ON CONFLICT (player_id) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0`,
-		playerID, codeHash, expiresAt)
+// SetKey gives the player a new login key; the old one stops working.
+func (s *Store) SetKey(ctx context.Context, playerID string, keyHash []byte) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE players SET key_hash = ? WHERE id = ?`, keyHash, playerID)
 	return err
 }
 
-type Transfer struct {
-	PlayerID, Nickname, ExpiresAt string
-	CodeHash                      []byte
-	Attempts                      int
-	HasPassword                   bool
-}
-
-func (s *Store) TransferByLogin(ctx context.Context, loginKey string) (Transfer, error) {
-	var t Transfer
-	err := s.db.QueryRowContext(ctx, `SELECT p.id, p.nickname, c.code_hash, c.expires_at, c.attempts, p.password_hash IS NOT NULL
-		FROM players p JOIN transfer_codes c ON c.player_id = p.id WHERE p.login_key = ?`, loginKey).
-		Scan(&t.PlayerID, &t.Nickname, &t.CodeHash, &t.ExpiresAt, &t.Attempts, &t.HasPassword)
+// PlayerByKey finds the player who owns this login key.
+func (s *Store) PlayerByKey(ctx context.Context, keyHash []byte) (Player, error) {
+	var p Player
+	err := s.db.QueryRowContext(ctx, `SELECT id, nickname, created_at, password_hash IS NOT NULL FROM players WHERE key_hash = ?`, keyHash).
+		Scan(&p.ID, &p.Nickname, &p.CreatedAt, &p.HasPassword)
 	if errors.Is(err, sql.ErrNoRows) {
-		return t, errNotFound
+		return p, errNotFound
 	}
-	return t, err
-}
-
-// FailTransfer counts a wrong code; the code is deleted after MaxCodeAttempts.
-func (s *Store) FailTransfer(ctx context.Context, playerID string) error {
-	if _, err := s.db.ExecContext(ctx, `UPDATE transfer_codes SET attempts = attempts + 1 WHERE player_id = ?`, playerID); err != nil {
-		return err
-	}
-	_, err := s.db.ExecContext(ctx, `DELETE FROM transfer_codes WHERE player_id = ? AND attempts >= ?`, playerID, MaxCodeAttempts)
-	return err
-}
-
-// DeleteTransfer ends a code: after it was used, or when it expired.
-func (s *Store) DeleteTransfer(ctx context.Context, playerID string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM transfer_codes WHERE player_id = ?`, playerID)
-	return err
+	return p, err
 }
 
 func sqlStep(q string) migration {

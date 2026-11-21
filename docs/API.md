@@ -71,11 +71,16 @@ Playing never needs a password: a nickname is enough. A player **may** later pro
 - **Another device:** the nickname alone isn't enough (otherwise anyone could play as anyone); the player logs in with the optional password.
 - Upgrading an older database: duplicate nicknames are renamed (the password account, then the oldest player, keeps the nickname; others get «-2», «-3»…).
 
-## Another device without a password (v1.3)
+## Secret login key (v1.3)
+
+Every player gets a **secret login key** when the nickname is registered: 12 characters in three groups, like `K7MX-2QPA-9RTD`. The nickname is public (leaderboards); the key is not. With the key alone, the player signs in on any device.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/api/v1/players/me/transfer` | Bearer | `201 { "code": "482913", "expiresAt", "nickname" }`: a one-time 6-digit code; a new code replaces the old one |
-| POST | `/api/v1/login/code` | `{ "nickname", "code" }` (spaces in the code are ignored) | `200 { "playerId", "token", "nickname", "hasPassword" }`; `401 bad_code` |
+| POST | `/api/v1/players` | `{ "nickname" }` | `201` now also returns `"key"` (shown to the player once by the server; the site keeps it on this device) |
+| POST | `/api/v1/login/key` | `{ "key" }` | `200 { "playerId", "token", "nickname", "hasPassword", "key" }`; `401 bad_key` |
+| POST | `/api/v1/players/me/key` | Bearer | `200 { "key" }`: a new key for a lost one; the old key stops working |
 
-The code works **once**, for **10 minutes**, and is deleted after **5 wrong tries**. Only its SHA-256 hash is stored. It shares the login rate limit (10 attempts per IP per minute) with password login.
+- **Alphabet:** `23456789ABCDEFGHJKMNPQRSTUVWXYZ` (no 0/O, 1/I/L, so a handwritten key can't be misread). 31¹² ≈ 2⁵⁹ keys.
+- **Typing is forgiving:** any case, spaces or dashes, and Russian look-alike letters (А, В, Е, К, М, Н, Р, С, Т, У, Х) are accepted.
+- **Stored as a SHA-256 hash** with a unique index. Key login shares the login rate limit (10 attempts per IP per minute).

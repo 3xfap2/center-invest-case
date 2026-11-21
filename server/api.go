@@ -9,11 +9,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
-	"math/big"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -51,8 +48,8 @@ func NewHandler(cfg Config, store *Store, log *slog.Logger) http.Handler {
 	api.HandleFunc("GET /api/v1/players/check", a.checkNickname)
 	api.HandleFunc("POST /api/v1/players/me/password", a.auth(a.setPassword))
 	api.HandleFunc("POST /api/v1/login", a.login)
-	api.HandleFunc("POST /api/v1/players/me/transfer", a.auth(a.createTransfer))
-	api.HandleFunc("POST /api/v1/login/code", a.loginWithCode)
+	api.HandleFunc("POST /api/v1/players/me/key", a.auth(a.newLoginKey))
+	api.HandleFunc("POST /api/v1/login/key", a.loginWithKey)
 	api.HandleFunc("POST /api/v1/logout", a.auth(a.logout))
 	api.HandleFunc("GET /api/v1/saves", a.auth(a.allSaves))
 	api.HandleFunc("POST /api/v1/achievements", a.auth(a.addAchievements))
@@ -249,7 +246,14 @@ func (a *API) createPlayer(w http.ResponseWriter, r *http.Request) {
 		a.internal(w, "create player", err)
 		return
 	}
-	writeJSON(w, 201, map[string]string{"playerId": p.ID, "token": token, "nickname": p.Nickname})
+	// Every player gets a secret login key at once. If that fails, the player still exists and can make one later.
+	out := map[string]any{"playerId": p.ID, "token": token, "nickname": p.Nickname, "key": nil}
+	if key, err := a.issueKey(r, p.ID); err == nil {
+		out["key"] = key
+	} else {
+		a.log.Error("issue key", "err", err)
+	}
+	writeJSON(w, 201, out)
 }
 
 func randomID() (string, error) {
@@ -346,75 +350,64 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"playerId": id, "token": token, "nickname": nick, "hasPassword": true})
 }
 
-// ---- moving to another device without a password ----
+// ---- the secret login key: sign in on another device with nothing else ----
 
-const transferTTL = 10 * time.Minute
-
-var codeRe = regexp.MustCompile(`^[0-9]{6}$`)
-
-// createTransfer makes a one-time 6-digit code: valid 10 minutes, once, at most 5 wrong tries.
-func (a *API) createTransfer(w http.ResponseWriter, r *http.Request, p Player) {
-	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
-	if err != nil {
-		a.internal(w, "transfer code", err)
-		return
+// issueKey makes a new unique key for the player and returns it formatted («K7MX-2QPA-9RTD»).
+// The server keeps only its hash, so a lost key can't be shown again, only replaced.
+func (a *API) issueKey(r *http.Request, playerID string) (string, error) {
+	for i := 0; i < 5; i++ { // a collision at 59 bits is practically impossible; retry anyway
+		k, err := newKey()
+		if err != nil {
+			return "", err
+		}
+		err = a.store.SetKey(r.Context(), playerID, hashToken(k))
+		if err == nil {
+			return formatKey(k), nil
+		}
+		if !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return "", err
+		}
 	}
-	code := fmt.Sprintf("%06d", n.Int64())
-	expires := time.Now().UTC().Add(transferTTL).Format(time.RFC3339)
-	if err := a.store.SetTransferCode(r.Context(), p.ID, hashToken(code), expires); err != nil {
-		a.internal(w, "set transfer code", err)
-		return
-	}
-	writeJSON(w, 201, map[string]string{"code": code, "expiresAt": expires, "nickname": p.Nickname})
+	return "", errors.New("no unique key")
 }
 
-func (a *API) loginWithCode(w http.ResponseWriter, r *http.Request) {
+// newLoginKey replaces the player's key (for a lost one); the old key stops working.
+func (a *API) newLoginKey(w http.ResponseWriter, r *http.Request, p Player) {
+	key, err := a.issueKey(r, p.ID)
+	if err != nil {
+		a.internal(w, "new key", err)
+		return
+	}
+	writeJSON(w, 200, map[string]string{"key": key})
+}
+
+func (a *API) loginWithKey(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Nickname string `json:"nickname"`
-		Code     string `json:"code"`
+		Key string `json:"key"`
 	}
 	if !readJSON(w, r, &in) {
 		return
 	}
-	bad := func() { fail(w, 401, "bad_code", "Неверный ник или код") }
-	code := strings.ReplaceAll(in.Code, " ", "")
-	if !codeRe.MatchString(code) || len(in.Nickname) > 80 {
-		bad()
+	k := normalizeKey(in.Key)
+	if k == "" {
+		fail(w, 401, "bad_key", "Неверный ключ входа")
 		return
 	}
-	t, err := a.store.TransferByLogin(r.Context(), loginKey(in.Nickname))
+	p, err := a.store.PlayerByKey(r.Context(), hashToken(k))
 	if errors.Is(err, errNotFound) {
-		bad()
+		fail(w, 401, "bad_key", "Неверный ключ входа")
 		return
 	}
 	if err != nil {
-		a.internal(w, "transfer lookup", err)
-		return
-	}
-	if t.ExpiresAt <= time.Now().UTC().Format(time.RFC3339) {
-		_ = a.store.DeleteTransfer(r.Context(), t.PlayerID)
-		bad()
-		return
-	}
-	if subtle.ConstantTimeCompare(t.CodeHash, hashToken(code)) != 1 {
-		if err := a.store.FailTransfer(r.Context(), t.PlayerID); err != nil {
-			a.internal(w, "transfer fail", err)
-			return
-		}
-		bad()
-		return
-	}
-	// One use only.
-	if err := a.store.DeleteTransfer(r.Context(), t.PlayerID); err != nil {
-		a.internal(w, "transfer use", err)
+		a.internal(w, "key login", err)
 		return
 	}
 	token := randomString(32)
-	if err := a.store.AddSession(r.Context(), t.PlayerID, hashToken(token)); err != nil {
+	if err := a.store.AddSession(r.Context(), p.ID, hashToken(token)); err != nil {
 		a.internal(w, "add session", err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"playerId": t.PlayerID, "token": token, "nickname": t.Nickname, "hasPassword": t.HasPassword})
+	writeJSON(w, 200, map[string]any{"playerId": p.ID, "token": token, "nickname": p.Nickname, "hasPassword": p.HasPassword, "key": formatKey(k)})
 }
 
 func (a *API) logout(w http.ResponseWriter, r *http.Request, p Player) {
