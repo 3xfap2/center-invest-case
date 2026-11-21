@@ -98,12 +98,12 @@ export function GameTitle({ game, sub = true, subSize }: { game: Game; sub?: boo
     case 'glitch':
       return (
         <>
-          <span className="pn-glitch" data-text="GLITCH">
-            GLITCH
+          <span className="pn-glitch" data-text="ГЛИТЧ">
+            ГЛИТЧ
           </span>
           {sub && (
             <span className="pn-hero-sub" style={subSize ? { fontSize: subSize } : undefined}>
-              Последний билд
+              Последняя сборка
             </span>
           )}
         </>
