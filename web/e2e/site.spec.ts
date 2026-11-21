@@ -73,11 +73,18 @@ test('a save and a flag survive a page reload', async ({ page }) => {
   expect(init.flags).toEqual({ mock_trusted_mentor: true });
 });
 
-test('end shows the results with the new achievement', async ({ page }) => {
+test('end: the player stays in the game (next chapter), then leaving the game opens the results', async ({ page }) => {
   await startAs(page, 'Тестер', 'Лёгкий');
   await game(page).locator('#achievement').click();
   await expect(page.getByTestId('toast')).toContainText('mk_first_click');
   await game(page).locator('#end').click();
+  // The game keeps running, so a multi-chapter game can go on to its next chapter.
+  await expect(page.getByTestId('toast')).toContainText('глава пройдена');
+  await expect(page.getByTestId('results-link')).toBeVisible();
+  await expect(page).toHaveURL('/play/mock');
+  await game(page).locator('#save').click(); // still talking to the site after the end
+  await expect(page.getByTestId('save-status')).toBeVisible();
+  await game(page).locator('#exit').click();
   await expect(page).toHaveURL('/results/mock');
   await expect(page.getByTestId('ending')).toHaveText('good');
   await expect(page.getByTestId('results')).toContainText('1:35');
@@ -167,6 +174,7 @@ test('with the API up: player is created, saves and runs go to the server, leade
   await game(page).locator('#save').click();
   await expect(page.getByTestId('save-status')).toHaveText('Сохранено', { timeout: 5000 });
   await game(page).locator('#end').click();
+  await page.getByTestId('results-link').click();
   await expect(page.getByTestId('leaderboard')).toContainText('Аня');
   expect(sent).toEqual(expect.arrayContaining(['POST /api/v1/players', 'PUT /api/v1/saves/mock', 'POST /api/v1/runs', 'GET /api/v1/leaderboard']));
   expect(sent.filter((s) => s === 'POST /api/v1/players')).toHaveLength(1);
@@ -179,5 +187,6 @@ test('with the API returning errors, the whole flow still works locally', async 
   await game(page).locator('#save').click();
   await expect(page.getByTestId('save-status')).toHaveText('Сохранено на этом устройстве');
   await game(page).locator('#end').click();
+  await page.getByTestId('results-link').click();
   await expect(page.getByTestId('ending')).toHaveText('good');
 });
