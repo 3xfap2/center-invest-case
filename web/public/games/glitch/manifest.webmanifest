@@ -1,0 +1,9 @@
+{
+  "name": "ГЛИТЧ: Последняя сборка",
+  "short_name": "ГЛИТЧ",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07090c",
+  "theme_color": "#0d1117"
+}

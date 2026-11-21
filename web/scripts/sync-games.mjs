@@ -28,6 +28,12 @@ for (const id of ids) {
   }
   if (meta.id !== id) throw new Error(`${file}: "id" is "${meta.id}", but the folder is "${id}"`);
   const entry = typeof meta.entry === 'string' ? meta.entry : 'index.html';
+  // A game may keep its achievement names in games/<id>/achievements.json ([{ id, title }]) instead of game.json.
+  const achFile = join(sources, id, 'achievements.json');
+  if (!meta.achievements && existsSync(achFile)) {
+    const list = JSON.parse(readFileSync(achFile, 'utf8'));
+    if (Array.isArray(list)) meta.achievements = Object.fromEntries(list.filter((a) => a?.id && a?.title).map((a) => [a.id, a.title]));
+  }
   games.push({ ...meta, available: existsSync(join(built, id, entry)) });
 }
 

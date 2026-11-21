@@ -53,7 +53,7 @@ const COPY: Record<string, SiteCopy> = {
     achievementPrefix: 'ci_',
   },
   glitch: {
-    title: 'GLITCH: Последний билд',
+    title: 'ГЛИТЧ: Последняя сборка',
     prof: 'Тестировщик игр',
     profession: 'Тестировщик игр',
     minutes: 30,
