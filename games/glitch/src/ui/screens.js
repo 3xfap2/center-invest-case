@@ -6,6 +6,20 @@ import { canFullscreen, enterFullscreen } from '../core/fullscreen.js';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
+// Общий прогресс по главам на стартовом экране: [{ no, title, state: 'done' | 'current' | 'locked' }].
+const STATE_LABEL = { done: 'пройдена', current: 'сейчас', locked: 'впереди' };
+function progressHtml(chapters) {
+  const done = chapters.filter((c) => c.state === 'done').length;
+  const pct = Math.round((done / chapters.length) * 100);
+  return `<div class="chapter-progress" data-testid="chapter-progress">
+      <div class="cp-head"><span>Прогресс</span><span>${done} из ${chapters.length} глав</span></div>
+      <div class="cp-bar" role="progressbar" aria-label="Пройдено глав" aria-valuemin="0" aria-valuemax="${chapters.length}" aria-valuenow="${done}"><div style="width:${pct}%"></div></div>
+      <ol class="cp-list">${chapters
+        .map((c) => `<li class="cp-${c.state}"><span class="cp-no">${c.no}</span><span class="cp-title">${esc(c.title)}</span><span class="cp-state">${STATE_LABEL[c.state]}</span></li>`)
+        .join('')}</ol>
+    </div>`;
+}
+
 export function createScreens(root) {
   const fadeEl = document.createElement('div');
   fadeEl.className = 'fade';
@@ -59,12 +73,15 @@ export function createScreens(root) {
           if (label) text.textContent = label;
         },
         // Ждём нажатия: оно же разрешает звук в браузере.
-        askStart({ canContinue, name }) {
+        askStart({ canContinue, name, chapters }) {
           text.textContent = name ? `Готово. Тестировщик: ${name}` : 'Готово';
+          const current = chapters?.find((c) => c.state === 'current');
+          const allDone = !!chapters && chapters.every((c) => c.state === 'done');
           btns.innerHTML = canContinue
-            ? `<button class="btn primary" data-a="continue">Продолжить смену</button>
+            ? `<button class="btn primary" data-a="continue">${current ? `Продолжить: глава ${current.no}` : 'Продолжить смену'}</button>
                <button class="btn" data-a="restart">Начать заново</button>`
-            : `<button class="btn primary" data-a="start">Начать смену</button>`;
+            : `<button class="btn primary" data-a="start">${allDone ? 'Пройти заново' : 'Начать смену'}</button>`;
+          if (chapters) btns.insertAdjacentHTML('afterbegin', progressHtml(chapters));
           btns.insertAdjacentHTML('beforeend', '<button class="link" data-a="credits">Авторы и источники</button>');
           // iPhone не даёт сайтам полный экран: подсказываем способ через «Домой» (только вне сайта команды).
           if (isTouch && !canFullscreen() && window.parent === window) {
