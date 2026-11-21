@@ -125,6 +125,8 @@ try {
   check('ретест: AT-08 отключён и журнал всё равно пропадает', !!(ev4.r1 && ev4.r2), JSON.stringify(ev4));
   await inPanel('console', '.c3-x').click();
   await wait(400);
+  await interact('bench');
+  check('ретест: скамейка починена', !!(await ch4()).evidence.r0);
   await interact('lis');
   check('ретест: Лис забыл игрока', !!(await ch4()).evidence.r3);
   await openConsole();
@@ -135,6 +137,8 @@ try {
   await inPanel('hypo', '[data-act="verdict"][data-id="r2"][data-v="true"]').click();
   await wait(400);
   check('неверный вердикт не принят', !(await ch4()).verdicts.r2);
+  await inPanel('hypo', '[data-act="verdict"][data-id="r0"][data-v="true"]').click();
+  await wait(300);
   await inPanel('hypo', '[data-act="verdict"][data-id="r1"][data-v="true"]').click();
   await wait(300);
   await inPanel('hypo', '[data-act="verdict"][data-id="r2"][data-v="false"]').click();

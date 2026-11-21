@@ -408,10 +408,26 @@ export function createOffice() {
   poster.rotation.y = -Math.PI / 2;
   add(poster);
   add(box(0.02, 1.16, 0.86, 0x1d222b, 4.99, 1.27, -1.4));
-  const logo = textPlane('НОЛЬ-ОДИН', { width: 1.4, height: 0.3, transparentBg: true, fg: '#e8edf2', font: 'bold 150px sans-serif' });
-  logo.position.set(4.985, 2.0, 0.6);
-  logo.rotation.y = -Math.PI / 2;
-  add(logo);
+  // Вывеска студии: тёмная подложка, жёлтый логотип «01», название и подпись, светящаяся полоса снизу.
+  // Стена x = 5, вывеска смотрит в комнату (-X); для зрителя +Z справа.
+  {
+    const cz = 0.6;
+    add(box(0.04, 0.66, 2.2, 0x10151c, 4.975, 1.68, cz)); // подложка
+    add(box(0.05, 0.025, 2.2, 0, 4.97, 1.68, cz, mat(PAL.screenOn, { emissive: 0xf2c94c, emissiveIntensity: 1 }))); // полоса снизу
+    add(box(0.05, 0.025, 2.2, 0, 4.97, 2.315, cz, mat(0x2a3140))); // кант сверху
+    const mark = textPlane('01', { width: 0.44, height: 0.44, bg: '#f2c94c', fg: '#1a1400', font: 'bold 260px sans-serif' });
+    mark.position.set(4.948, 2.01, cz - 0.74);
+    mark.rotation.y = -Math.PI / 2;
+    add(mark);
+    const name = textPlane('НОЛЬ-ОДИН', { width: 1.4, height: 0.28, transparentBg: true, fg: '#f4f1e8', font: 'bold 150px sans-serif', align: 'left', pad: 0 });
+    name.position.set(4.948, 2.1, cz + 0.27);
+    name.rotation.y = -Math.PI / 2;
+    add(name);
+    const sub = textPlane('СТУДИЯ ИГР', { width: 1.4, height: 0.14, transparentBg: true, fg: '#f2c94c', font: 'bold 90px sans-serif', align: 'left', pad: 0 });
+    sub.position.set(4.948, 1.87, cz + 0.27);
+    sub.rotation.y = -Math.PI / 2;
+    add(sub);
+  }
 
   // растения по углам
   plant(scene, -4.5, -3.5, true);

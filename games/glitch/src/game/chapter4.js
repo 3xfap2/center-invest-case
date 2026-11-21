@@ -244,7 +244,7 @@ export function createChapter4(ctx) {
     const slot = (id) => ctx.world?.slots.find((s) => s.id === id)?.object;
     if (flag('report_sent')) return { id: 'lis', text: 'Поговори с Лисом напоследок', target: o.lis };
     if (flag('retest_done')) return { id: 'report', text: 'Собери итоговый отчёт у терминала дежурного', target: o.terminal };
-    if (flag('on_station')) return { id: 'retest', text: `Пройди чек-лист ретеста 0.9.8 в консоли (${keyConsole()}). Пунктов: ${verdictCount()} из 3` };
+    if (flag('on_station')) return { id: 'retest', text: `Пройди чек-лист ретеста 0.9.8 в консоли (${keyConsole()}). Пунктов: ${verdictCount()} из ${RETEST.length}` };
     if (flag('met_team')) return { id: 'launch', text: 'Сядь за свой компьютер и запусти сборку 0.9.8', target: slot('pc') };
     return { id: 'meet', text: 'Поговори с Тимуром: он выпустил исправление', target: o.timur };
   }
@@ -282,7 +282,7 @@ export function createChapter4(ctx) {
   function enterStation(pos) {
     removeHandLantern();
     const w = ctx.loadScene('station');
-    w.api.setBuild?.('0.9.7'); // 0.9.8 выглядит как 0.9.7: Тимур менял только код
+    w.api.setBuild?.('0.9.5'); // 0.9.8: Тимур починил скамейку (обещал в главе 1), остальное как в 0.9.7
     w.api.resetState();
     w.api.openServiceDoor();
     journalGone = false;
@@ -329,6 +329,12 @@ export function createChapter4(ctx) {
         onUse: async () => {
           if (flag('report_sent')) return lisFinal();
           if (await talk(D4.lisStranger)) evidence('r3');
+        },
+      },
+      bench: {
+        label: 'Осмотреть скамейку',
+        onUse: async () => {
+          if (await talk([{ who: 'me', text: 'Скамейка стоит на полу. Тимур её всё-таки починил.' }])) evidence('r0');
         },
       },
       terminal: {
@@ -510,7 +516,7 @@ export function createChapter4(ctx) {
         choices: Object.entries(s.decisions).map(([key, value]) => ({ key, value })),
         teaser: `Финал: «${meta.title}». ${meta.note} Спасибо, что прошёл смену до конца.`,
         skillsUsed: [
-          { text: 'Проверил исправление по чек-листу (ретест)', done: flag('retest_done') },
+          { text: 'Проверил исправление по чек-листу (ретест): что починили, а что нет', done: flag('retest_done') },
           { text: 'Нашёл регрессию: исправление сломало память Лиса', done: !!c.verdicts.r3 },
           { text: 'Собрал итоговый отчёт из улик всех глав', done: flag('report_sent') },
           { text: 'Дал рекомендацию о релизе', done: flag('report_sent') },
@@ -545,8 +551,8 @@ const PRESET4_STEPS = {
     s.debugSpawn = 'lisTalk';
   },
   ch4_report: (s) => {
-    s.ch4.evidence = { r1: true, r2: true, r3: true };
-    s.ch4.verdicts = { r1: 'true', r2: 'false', r3: 'false' };
+    s.ch4.evidence = { r0: true, r1: true, r2: true, r3: true };
+    s.ch4.verdicts = { r0: 'true', r1: 'true', r2: 'false', r3: 'false' };
     Object.assign(s.flags, { retest_2: true, retest_done: true });
     s.debugSpawn = 'terminalView';
   },

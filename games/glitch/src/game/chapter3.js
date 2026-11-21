@@ -503,6 +503,7 @@ export function createChapter3(ctx) {
         },
       },
       service_door: { label: 'Войти в комнату Никиты', onUse: () => fadeTo(() => enterDiag(null)) },
+      bench: { label: 'Осмотреть скамейку', onUse: () => talk([{ who: 'me', text: 'Скамейка всё ещё летает. Тимур обещал починить после релиза.' }]) },
       terminal: { label: 'Терминал дежурного', onUse: () => talk([{ who: 'me', text: 'Сегодня всё нужное в консоли отладки.' }]) },
     };
   }
