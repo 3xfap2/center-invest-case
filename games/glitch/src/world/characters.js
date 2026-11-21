@@ -97,7 +97,8 @@ export function createCharacter({ name = 'npc', shirt, pants, hair, skin, extra 
   head.position.y = 0.65;
   body.add(head);
   head.add(box(0.23, 0.26, 0.24, skin, 0, 0, 0));
-  for (const s of [-1, 1]) head.add(box(0.035, 0.035, 0.01, 0x1a1a1f, s * 0.055, 0.13, 0.122));
+  // глаза чуть впереди лица (лицо на z = 0.12), без общих плоскостей с очками: иначе мерцают
+  for (const s of [-1, 1]) head.add(box(0.035, 0.035, 0.01, 0x1a1a1f, s * 0.055, 0.13, 0.124));
   head.add(box(0.04, 0.06, 0.03, shade(skin, 0.92), 0, 0.07, 0.13)); // нос
   head.add(box(0.07, 0.012, 0.01, shade(skin, 0.7), 0, 0.035, 0.121)); // рот
   for (const s of [-1, 1]) head.add(box(0.03, 0.06, 0.05, shade(skin, 0.9), s * 0.125, 0.1, 0)); // уши
@@ -111,11 +112,12 @@ export function createCharacter({ name = 'npc', shirt, pants, hair, skin, extra 
     // очки
     const frame = 0x22252b;
     for (const s of [-1, 1]) {
-      head.add(box(0.075, 0.052, 0.006, 0xbfe0ea, s * 0.055, 0.13, 0.124));
-      head.add(box(0.085, 0.012, 0.012, frame, s * 0.055, 0.162, 0.126));
+      // стекло в 4 мм перед глазами и полупрозрачное, чтобы глаза было видно
+      head.add(box(0.075, 0.052, 0.004, 0xbfe0ea, s * 0.055, 0.13, 0.137, mat(0xbfe0ea, { opacity: 0.35 })));
+      head.add(box(0.085, 0.012, 0.012, frame, s * 0.055, 0.162, 0.138)); // верх оправы перед стеклом
       head.add(box(0.01, 0.012, 0.21, frame, s * 0.118, 0.155, 0.02));
     }
-    head.add(box(0.035, 0.01, 0.01, frame, 0, 0.14, 0.127));
+    head.add(box(0.03, 0.01, 0.01, frame, 0, 0.14, 0.137)); // перемычка
     body.add(ccyl(0.1, 0.11, 0.07, shirt, 0, 0.54, 0, 8)); // ворот свитера
     body.add(box(0.07, 0.09, 0.01, 0xf2f2f2, 0.11, 0.33, 0.135)); // бейдж
     body.add(box(0.012, 0.16, 0.008, 0x37e6ff, 0.08, 0.38, 0.132)); // ремешок бейджа

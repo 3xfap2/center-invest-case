@@ -1,6 +1,7 @@
 // Полноэкранные экраны: загрузка и старт, пауза, затемнение, финал главы, авторы.
 import { sfx, unlockAudio } from '../core/audio.js';
 import { isTouch } from '../core/input.js';
+import { canFullscreen, enterFullscreen } from '../core/fullscreen.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -65,6 +66,10 @@ export function createScreens(root) {
                <button class="btn" data-a="restart">Начать заново</button>`
             : `<button class="btn primary" data-a="start">Начать смену</button>`;
           btns.insertAdjacentHTML('beforeend', '<button class="link" data-a="credits">Авторы и источники</button>');
+          // iPhone не даёт сайтам полный экран: подсказываем способ через «Домой» (только вне сайта команды).
+          if (isTouch && !canFullscreen() && window.parent === window) {
+            btns.insertAdjacentHTML('beforeend', '<p class="fs-tip">На весь экран на iPhone: «Поделиться», затем «На экран Домой».</p>');
+          }
           btns.classList.remove('hidden');
           return new Promise((resolve) => {
             const onClick = async (e) => {
@@ -72,6 +77,8 @@ export function createScreens(root) {
               if (!a) return;
               unlockAudio();
               sfx.ui();
+              // На телефоне сразу на весь экран: нужен жест игрока, поэтому именно здесь.
+              if (isTouch && a !== 'credits') enterFullscreen();
               if (a === 'credits') {
                 await screens.credits();
                 return;

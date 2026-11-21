@@ -1,6 +1,7 @@
 // Ввод: клавиатура и мышь на ПК, джойстик и свайпы на телефоне.
 // Игровая логика читает input.move и input.takeLook(), подписывается на bus 'input:interact', 'input:tablet', 'input:pause'.
 import { bus } from './events.js';
+import { canFullscreen, isFullscreen, enterFullscreen, onFullscreenChange } from './fullscreen.js';
 
 // Только основной указатель: ноутбук с сенсорным экраном считается ПК и управляется мышью.
 export const isTouch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
@@ -98,9 +99,10 @@ function initTouch() {
   pad.className = 'touch-layer';
   pad.innerHTML = `
     <div class="joy" data-joy><div class="joy-knob"></div></div>
-    <button class="tbtn tbtn-act" data-act>Действие</button>
+    <button class="tbtn-palm" data-act aria-label="Действие"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.6" y="4.2" width="2.6" height="10" rx="1.3"/><rect x="9.7" y="2.6" width="2.6" height="11" rx="1.3"/><rect x="12.8" y="3.1" width="2.6" height="11" rx="1.3"/><rect x="15.9" y="5.2" width="2.6" height="9" rx="1.3"/><rect x="6.6" y="10.2" width="11.9" height="10.6" rx="4.2"/><rect x="3.9" y="10.4" width="2.6" height="7.4" rx="1.3" transform="rotate(-32 5.2 14.1)"/></svg></button>
     <button class="tbtn tbtn-tab" data-tab>Планшет</button>
-    <button class="tbtn tbtn-pause" data-pause aria-label="Пауза">II</button>`;
+    <button class="tbtn tbtn-pause" data-pause aria-label="Пауза">II</button>
+    <button class="tbtn tbtn-fs hidden" data-fs aria-label="На весь экран">⛶</button>`;
   root.appendChild(pad);
 
   const joy = pad.querySelector('[data-joy]');
@@ -113,6 +115,16 @@ function initTouch() {
 
   const btnAct = pad.querySelector('[data-act]');
   const btnTab = pad.querySelector('[data-tab]');
+  // Кнопка «на весь экран»: видна, если браузер это умеет и мы ещё не в полном экране.
+  const btnFs = pad.querySelector('[data-fs]');
+  const syncFs = () => btnFs.classList.toggle('hidden', !canFullscreen() || isFullscreen());
+  syncFs();
+  onFullscreenChange(syncFs);
+  btnFs.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    enterFullscreen().then(syncFs);
+  });
   pad.querySelector('[data-pause]').addEventListener('touchstart', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -131,8 +143,9 @@ function initTouch() {
 
   bus.on('input:enabled', (v) => pad.classList.toggle('hidden', !v));
   bus.on('prompt', (label) => {
-    btnAct.textContent = label || 'Действие';
+    // Ладонь горит жёлтым, только когда есть с чем взаимодействовать.
     btnAct.classList.toggle('ready', !!label);
+    btnAct.setAttribute('aria-label', label || 'Действие');
   });
 
   canvas.addEventListener(

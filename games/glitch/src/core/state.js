@@ -7,38 +7,43 @@ const KEY = 'glitch_save_v1';
 const LOG_LIMIT = 40;
 
 // Сложность меняет реальные числа: подсказки, время смены, строгость проверки отчётов.
+// Глава 1 рассчитана примерно на 8 минут. Подсказки Ирины без ограничений на лёгкой и обычной сложности.
+// По контракту команды hard = меньше времени и без подсказок.
 export const DIFFICULTY = {
   easy: {
     id: 'easy',
     label: 'Лёгкая',
-    note: 'Ирина подсказывает сама, больше времени на смену',
-    hints: 6,
+    note: 'Ромб показывает путь, Ирина подсказывает сама, больше времени',
+    hints: Infinity,
     autoHints: true,
-    autoHintDelay: 20, // секунд без прогресса до подсказки в чате
+    autoHintDelay: 12, // секунд на одном шаге до подсказки в чате
+    markers: true, // жёлтый ромб над целью
     strict: false,
-    shiftSec: 25 * 60, // время смены: уложился, получил звезду
+    shiftSec: 15 * 60, // время смены: уложился, получил звезду
     mistakesForStar: 2, // сколько отчётов можно вернуть без потери звезды
   },
   normal: {
     id: 'normal',
     label: 'Обычная',
-    note: '3 подсказки по кнопке, обычное время смены',
-    hints: 3,
-    autoHints: false,
-    autoHintDelay: 0,
+    note: 'Ромб показывает путь, подсказки Ирины без ограничений',
+    hints: Infinity,
+    autoHints: true,
+    autoHintDelay: 30,
+    markers: true,
     strict: false,
-    shiftSec: 18 * 60,
+    shiftSec: 10 * 60,
     mistakesForStar: 1,
   },
   hard: {
     id: 'hard',
     label: 'Сложная',
-    note: 'Без подсказок, меньше времени, шаги в отчёте без лишнего',
+    note: 'Без ромба и подсказок, меньше времени, шаги в отчёте без лишнего',
     hints: 0,
     autoHints: false,
     autoHintDelay: 0,
+    markers: false,
     strict: true,
-    shiftSec: 12 * 60,
+    shiftSec: 7 * 60,
     mistakesForStar: 0,
   },
 };

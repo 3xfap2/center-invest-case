@@ -71,6 +71,13 @@ const achDoc = fs.readFileSync(rel('docs/ACHIEVEMENTS.md'), 'utf8');
 const unlocked = [...new Set([...allSrc.matchAll(/unlock\('([a-z0-9_]+)'/g)].map((m) => m[1]))];
 check('все достижения описаны в docs/ACHIEVEMENTS.md', unlocked.every((k) => achDoc.includes(`\`${k}\``)), unlocked.join(', '));
 check('достижения с префиксом gl_', unlocked.every((k) => k.startsWith('gl_')));
+const achJson = JSON.parse(fs.readFileSync(rel('achievements.json'), 'utf8'));
+const jsonIds = achJson.map((a) => a.id);
+check(
+  'achievements.json совпадает с кодом (для сайта)',
+  unlocked.every((k) => jsonIds.includes(k)) && jsonIds.every((k) => unlocked.includes(k)) && achJson.every((a) => a.title && a.description),
+  `в коде ${unlocked.length}, в json ${jsonIds.length}`,
+);
 check('общий мост берётся из games/shared', allSrc.includes("import '../../../shared/ns-bridge.js'") && !fs.existsSync(rel('src/ns-bridge.js')));
 
 // ---------- 2. Автопрохождение (dev) ----------

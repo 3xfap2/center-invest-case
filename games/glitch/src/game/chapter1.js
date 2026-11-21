@@ -115,40 +115,107 @@ export function createChapter1(ctx) {
   }
 
   // ---------- Задачи и подсказки ----------
-  function hintStage() {
-    if (S().scene === 'office') return flag('met_irina') ? 'office_pc' : 'office_irina';
-    if (!flag('met_lis')) return 'lis';
-    if (!flag('bench_reported') && !flag('journal_gone')) return 'bench';
-    if (!flag('journal_gone')) return 'journal';
-    if (!flag('replay_ok')) return 'replay';
-    if (!flag('journal_reported')) return 'report';
-    if (!flag('compared')) return 'compare';
-    if (!flag('evidence_saved')) return 'save';
-    return 'done';
+  const tabKey = () => (isTouch ? 'кнопка «Планшет»' : 'Tab');
+  const actKey = () => (isTouch ? 'кнопку «Действие»' : 'E');
+  const slotObj = (id) => ctx.world?.slots.find((x) => x.id === id)?.object || null;
+
+  // Текущий шаг главы: текст задачи, объект для маркера и подсказка Ирины.
+  function goal() {
+    const o = ctx.world?.objects || {};
+    if (S().scene === 'office') {
+      if (!flag('met_irina')) return { id: 'office_irina', text: 'Подойди к Ирине и поговори с ней', target: o.irina };
+      return { id: 'office_pc', text: 'Сядь за свой компьютер у окна и запусти сборку', target: slotObj('pc') };
+    }
+    if (flag('door_opened')) return { id: 'door', text: 'Обернись. Служебный выход открыт. Подойди к нему', target: o.serviceDoor };
+    if (flag('final_logged')) return { id: 'final', text: `Открой планшет (${tabKey()}): в журнале действий новая запись` };
+    if (flag('evidence_saved')) return { id: 'wait', text: 'Постой у терминала. Смена почти закончилась', target: o.terminal };
+    if (flag('compared')) return { id: 'save', text: 'Подойди к терминалу дежурного и сохрани доказательства', target: o.terminal };
+    if (flag('dup_found'))
+      return { id: 'compare', text: `Планшет (${tabKey()}), вкладка «Трекер»: открой отчёт #0412 и нажми «Сравнить с моим»` };
+    if (flag('journal_reported')) return { id: 'compare', text: 'Отчёт принят. Трекер ищет похожие отчёты…' };
+    if (flag('replay_ok'))
+      return {
+        id: 'report',
+        text: `Планшет (${tabKey()}), «Трекер», «Новый отчёт»: выбери «Журнал путешественников», нажми «Подставить шаги из повтора», заполни поля и отправь`,
+      };
+    if (flag('journal_gone'))
+      return {
+        id: 'replay',
+        text: diff().strict
+          ? 'Журнал исчез. Найди в журнале действий, что к этому привело, и воспроизведи ошибку'
+          : `Журнал исчез. Планшет (${tabKey()}), вкладка «Журнал»: отметь «Взял фонарь», «Вошёл в архив», «Вышел из архива» и нажми «Воспроизвести выбранное»`,
+      };
+    if (!flag('met_lis')) return { id: 'lis', text: 'Подойди к будке смотрителя и поговори с Лисом', target: o.lis };
+    if (!flag('lantern_held')) return { id: 'lantern', text: 'Возьми фонарь с крюка у будки', target: o.lantern };
+    if (inArchive) return { id: 'archive_out', text: 'Ты в архиве. Теперь выйди обратно в зал', target: o.archiveDoor };
+    if (!ctx.world.api.isArchiveOpen()) return { id: 'archive', text: 'Открой дверь архива и зайди внутрь с фонарём', target: o.archiveDoor };
+    return { id: 'archive', text: 'Зайди в архив с фонарём', target: o.archiveDoor };
   }
 
   function objective() {
-    if (S().scene === 'office') {
-      return flag('met_irina') ? 'Сядь за свой компьютер у окна и запусти сборку' : 'Подойди к Ирине и представься';
+    return goal().text;
+  }
+
+  // Маркер над целью: жёлтый ромб, виден сквозь стены. На сложном уровне его нет.
+  const marker = (() => {
+    const m = new THREE.MeshBasicMaterial({ color: 0xf2c94c, depthTest: false, depthWrite: false, transparent: true, opacity: 0.92 });
+    const g = new THREE.Group();
+    const top = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.22, 4), m);
+    top.position.y = 0.11;
+    const bottom = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 4), m);
+    bottom.rotation.x = Math.PI;
+    bottom.position.y = -0.15;
+    g.add(top, bottom);
+    g.traverse((x) => (x.renderOrder = 999));
+    g.visible = false;
+    return g;
+  })();
+  const markerBox = new THREE.Box3();
+  let markerTarget = null;
+  let markerTop = new THREE.Vector3();
+
+  function updateMarker(t, target) {
+    const w = ctx.world;
+    const show = !!target && diff().markers && !ctx.cutscene && !!w;
+    if (!show) {
+      marker.visible = false;
+      return;
     }
-    if (flag('door_opened')) return 'Служебный выход открыт';
-    if (flag('final_logged')) return 'В журнале действий новая запись';
-    if (flag('evidence_saved')) return 'Смена окончена';
-    if (flag('compared')) return 'Сохрани доказательства в терминале дежурного';
-    if (flag('dup_found')) return 'Открой похожий отчёт #0412 и сравни со своим';
-    if (flag('journal_reported')) return 'Отчёт принят. Жди ответа в чате';
-    if (flag('replay_ok')) return 'Напиши отчёт об исчезновении журнала и приложи запись';
-    if (flag('journal_gone')) return 'Журнал исчез. Найди причину в журнале действий и воспроизведи ошибку';
-    if (!flag('met_lis')) return 'Осмотри станцию и поговори со смотрителем';
-    if (!flag('bench_reported')) return 'Найди в зале странность и напиши первый отчёт';
-    return 'Проверь архив. Лис советовал взять фонарь';
+    if (marker.parent !== w.scene) w.scene.add(marker);
+    if (target !== markerTarget) {
+      markerTarget = target;
+      markerBox.setFromObject(target);
+      markerBox.getCenter(markerTop);
+      markerTop.y = Math.min(markerBox.max.y, 2.4) + 0.45;
+    }
+    marker.visible = true;
+    marker.position.set(markerTop.x, markerTop.y + Math.sin(t * 3) * 0.07, markerTop.z);
+    marker.rotation.y = t * 1.5;
   }
 
+  let lastObjective = '';
   function refreshObjective() {
-    if (!disposed) hud.setObjective(objective());
+    if (disposed) return;
+    const text = objective();
+    if (text !== lastObjective) {
+      lastObjective = text;
+      hud.setObjective(text);
+    }
+    // Та же задача видна внутри планшета, иначе за ним её не видно.
+    const panel = document.querySelector('.tb-panel');
+    if (panel) {
+      let el = panel.querySelector('.tb-guide');
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'tb-guide';
+        panel.insertBefore(el, panel.querySelector('.tb-body'));
+      }
+      // Планшет уже открыт: убираем «Планшет (Tab), » из начала.
+      let inner = text.replace(/Планшет \([^)]*\),\s*/, '');
+      inner = inner.charAt(0).toUpperCase() + inner.slice(1);
+      if (el.textContent !== `Задача: ${inner}`) el.textContent = `Задача: ${inner}`;
+    }
   }
-
-  const AUTO_HINT = { replay: 'autoJournalGone', report: 'autoReport', compare: 'autoCompare', save: 'autoSave' };
 
   // ---------- Фонарь ----------
   // Фонарь в руке крепится к камере один раз за вход на станцию и дальше только включается и выключается.
@@ -244,6 +311,7 @@ export function createChapter1(ctx) {
         onUse: () => {
           if (flag('met_timur')) return talk(D.timurAgain);
           setFlag('met_timur');
+          unlock('gl_team');
           return talk(D.timurFirst);
         },
       },
@@ -263,7 +331,13 @@ export function createChapter1(ctx) {
         },
       },
       whiteboard: { label: 'Прочитать доску', onUse: () => talk(D.whiteboard) },
-      coffee: { label: 'Кофемашина', onUse: () => talk(D.coffee) },
+      coffee: {
+        label: 'Кофемашина',
+        onUse: () => {
+          unlock('gl_coffee');
+          return talk(D.coffee);
+        },
+      },
     };
   }
 
@@ -282,6 +356,8 @@ export function createChapter1(ctx) {
   async function talkLis() {
     if (!flag('met_lis')) return lisIntro();
     logAction('talk_lis');
+    S().lisTalks = (S().lisTalks || 1) + 1;
+    if (S().lisTalks >= 3) unlock('gl_lis_friend');
     if (flag('journal_gone') && !flag('lis_gone_talk')) {
       setFlag('lis_gone_talk');
       const nodes = [...D.lisAfterGone];
@@ -311,6 +387,7 @@ export function createChapter1(ctx) {
         onUse: () => {
           setLantern(false);
           logAction('return_lantern');
+          unlock('gl_careful');
           sfx.pickup();
         },
       },
@@ -345,6 +422,8 @@ export function createChapter1(ctx) {
         label: 'Осмотреть часы',
         onUse: () => {
           logAction('inspect_clock');
+          setFlag('inspected_clock');
+          if (flag('inspected_bench')) unlock('gl_side_bugs');
           talk(D.clock);
         },
       },
@@ -352,6 +431,8 @@ export function createChapter1(ctx) {
         label: 'Осмотреть скамейку',
         onUse: async () => {
           logAction('inspect_bench');
+          setFlag('inspected_bench');
+          if (flag('inspected_clock')) unlock('gl_side_bugs');
           await talk(D.bench);
           if (!flag('bench_reported')) chatOnce('benchGuide');
         },
@@ -380,6 +461,8 @@ export function createChapter1(ctx) {
     setFlag('journal_gone');
     ctx.world.api.setJournalVisible(false, { glitch: true });
     hud.glitch();
+    setFlag('noticed_gone');
+    later(700, () => talk(D.journalGone));
     refreshObjective();
   }
 
@@ -690,8 +773,8 @@ export function createChapter1(ctx) {
     onHint() {
       if (!tabletCallbacks.canHint()) return null;
       S().hintsUsed += 1;
-      const st = hintStage();
-      const text = st.startsWith('office') ? objective() : HINTS[st];
+      const g = goal();
+      const text = HINTS[g.id] || g.text;
       pushChat('irina', text);
       return text;
     },
@@ -717,6 +800,7 @@ export function createChapter1(ctx) {
       const r = S().reports.find((x) => x.id === id);
       await playReplay(r?.steps?.length ? r.steps : JOURNAL_BUG_STEPS, { ok: true, badge: 'ЗАПИСЬ n.orlov · сборка 0.9.6' });
       setFlag('nikita_played');
+      unlock('gl_nikita_record');
       decide('gl_watched_nikita_record', true);
     },
     onSaveEvidence(ids) {
@@ -744,8 +828,11 @@ export function createChapter1(ctx) {
   };
 
   // ---------- Кадр ----------
-  function update(dt) {
-    if (disposed || ctx.cutscene || !ctx.world) return;
+  function update(dt, t = 0) {
+    if (disposed || ctx.cutscene || !ctx.world) {
+      marker.visible = false;
+      return;
+    }
     const w = ctx.world;
     const p = player.pos;
     const free = input.enabled && !busy;
@@ -760,6 +847,8 @@ export function createChapter1(ctx) {
 
     if (ctx.sceneName === 'office') {
       if (free && !flag('met_irina') && distTo(w.objects.irina, p) < 3) irinaBrief();
+      updateMarker(t, goal().target);
+      refreshObjective();
       return;
     }
 
@@ -788,24 +877,25 @@ export function createChapter1(ctx) {
     }
 
     if (free && !flag('met_lis') && distTo(w.objects.lis, p) < 3.2) lisIntro();
-    if (free && flag('journal_gone') && !flag('noticed_gone') && distTo(w.objects.journal, p) < 2.6) {
-      setFlag('noticed_gone');
-      talk(D.journalGone);
-    }
 
-    // Автоподсказки для «Стажёра».
-    const st = hintStage();
-    if (st !== stage) {
-      stage = st;
+    // Автоподсказки: если игрок долго стоит на одном шаге, Ирина пишет сама.
+    const g = goal();
+    if (g.id !== stage) {
+      stage = g.id;
       stageTime = 0;
     }
     stageTime += dt;
-    if (diff().autoHints && AUTO_HINT[st] && stageTime > diff().autoHintDelay) chatOnce(AUTO_HINT[st]);
+    if (diff().autoHints && stageTime > diff().autoHintDelay && HINTS[g.id] && !flag(`auto_${g.id}`)) {
+      setFlag(`auto_${g.id}`);
+      pushChat('irina', HINTS[g.id]);
+    }
+    updateMarker(t, g.target);
+    refreshObjective();
 
     // Финал: игрок стоит у терминала после сохранения доказательств.
     if (flag('evidence_saved') && !flag('final_logged') && free && flag('after_save_said')) {
       const tv = w.points.terminalView;
-      if (Math.hypot(p.x - tv.x, p.z - tv.z) < 2.6 && player.stillTime > 3) triggerFinalLog();
+      if (Math.hypot(p.x - tv.x, p.z - tv.z) < 3 && player.stillTime > 1.5) triggerFinalLog();
     }
     if (flag('final_logged') && !flag('door_opened')) {
       finalRemind += dt;
@@ -832,7 +922,7 @@ export function createChapter1(ctx) {
         if (!s.pos) {
           ctx.cutscene = true;
           await screens.fadeOut('Студия «Ноль-Один». 21:40', 'Первый рабочий день. Релиз завтра.');
-          await wait(1600);
+          await wait(900);
           if (disposed) return; // главу уже перезапустили из меню
           ctx.cutscene = false;
           await screens.fadeIn();
@@ -860,7 +950,7 @@ export function createChapter1(ctx) {
       const timeBonus = Math.round(Math.max(0, d.shiftSec - durationSec) / d.shiftSec * 300);
       const score = Math.max(
         0,
-        500 + evCount * 100 + (flag('clock_checked') ? 150 : 0) - (s.mistakes || 0) * 75 - (s.hintsUsed || 0) * 50 + timeBonus,
+        500 + evCount * 100 + (flag('clock_checked') ? 150 : 0) - (s.mistakes || 0) * 75 + timeBonus,
       );
       // Решения для следующих глав фиксируем в конце, даже если игрок их не трогал.
       decide('gl_reported_lis', !!flag('lis_reported'));
@@ -868,6 +958,10 @@ export function createChapter1(ctx) {
       decide('gl_watched_nikita_record', !!flag('nikita_played'));
       if (!s.decisions.gl_clock_trap) decide('gl_clock_trap', 'none');
       decide('gl_ch1_ending', ending);
+      if (evCount === EVIDENCE_ITEMS.length) unlock('gl_all_evidence');
+      if ((s.mistakes || 0) === 0) unlock('gl_perfect');
+      if (durationSec > 0 && durationSec <= 360) unlock('gl_fast');
+      if (stars === 3) unlock('gl_three_stars');
       const meta = ENDINGS[ending];
       return {
         ending,
@@ -889,6 +983,7 @@ export function createChapter1(ctx) {
     },
     dispose() {
       disposed = true;
+      marker.parent?.remove(marker);
       timers.forEach(clearTimeout);
       unsubs.forEach((u) => u());
       removeHandLantern();
