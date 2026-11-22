@@ -166,7 +166,12 @@ test('the achievements leaderboard shows top players and marks you', async ({ pa
 test('without the server, the leaderboard explains itself and the account page still works offline', async ({ page }) => {
   await page.route('**/api/**', (r) => r.abort('connectionrefused'));
   await page.goto('/');
+  await expect(page.getByTestId('achievement-board')).toHaveCount(0); // the hall has its own page now
+  await page.getByTestId('nav-hall').click();
+  await expect(page).toHaveURL('/hall');
   await expect(page.getByTestId('achievement-board')).toContainText('Таблица появится, когда сервер будет доступен');
+  await page.getByTestId('hall-back').click();
+  await expect(page).toHaveURL('/');
   await page.goto('/account');
   await page.getByLabel('Ключ входа').fill('K7MX-2QPA-9RTD');
   await page.getByRole('button', { name: 'Войти' }).click();
