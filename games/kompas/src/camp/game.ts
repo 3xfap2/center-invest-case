@@ -5,11 +5,13 @@ import type { Axis, Difficulty, Emote, Path, Question, Teen } from './content';
 
 export const slotsPerDay = 3;
 export const totalSlots = camp.days.length * slotsPerDay;
-export const slotSeconds = 66;
+const legacySlotSeconds = 66;
+export const slotSeconds = 45;
+export const signalBeatSeconds = 9;
 export const difficultyRules = {
-  easy: { points: 9, mixed: 0.04, hint: true, window: 10 },
-  normal: { points: 6, mixed: 0.17, hint: true, window: 9 },
-  hard: { points: 4, mixed: 0.36, hint: false, window: 7 },
+  easy: { points: 9, mixed: 0.04, hint: true, window: 8 },
+  normal: { points: 6, mixed: 0.17, hint: true, window: 7 },
+  hard: { points: 4, mixed: 0.36, hint: false, window: 5.75 },
 };
 export const labels: Record<Emote, string> = {
   interest: 'Интерес', stress: 'Напряжение', bored: 'Скука', help: 'Помощь', conflict: 'Конфликт',
@@ -25,18 +27,19 @@ const exchange = z.object({ teen: z.string(), day: z.number().int().min(0).max(c
 const saveSchema = z.object({
   v: z.literal(1), seed: z.number().int().nonnegative(), difficulty: z.enum(levels), day: z.number().int().min(0).max(camp.days.length - 1),
   slot: z.number().int().min(0).max(slotsPerDay - 1), completed: z.number().int().min(0).max(totalSlots),
-  phase: z.enum(scenes), assignments: z.record(z.string(), z.string()), points: count, elapsed: count.max(slotSeconds), durationSec: count,
+  phase: z.enum(scenes), assignments: z.record(z.string(), z.string()), schoolVisited: z.boolean().optional(),
+  points: count, elapsed: count.max(legacySlotSeconds), durationSec: count,
   observations: z.array(notes), talks: z.array(exchange), paths: z.record(z.string(), pathSchema),
   ranked: z.boolean().nullable(), ending: z.enum(endings).nullable(),
   watched: z.record(typeSchema, count), attention: z.record(typeSchema, count),
   answers: z.array(typeSchema).max(camp.pictures.length), earned: z.array(z.string()),
 });
-export type CampState = z.infer<typeof saveSchema>;
+export type CampState = Omit<z.infer<typeof saveSchema>, 'schoolVisited'> & { schoolVisited: boolean };
 type Observation = z.infer<typeof notes>;
 
 export function createGame(difficulty: Difficulty = 'normal', seed = 104729): CampState {
   return {
-    v: 1, seed, difficulty, day: 0, slot: 0, completed: 0, phase: 'plan', assignments: {},
+    v: 1, seed, difficulty, day: 0, slot: 0, completed: 0, phase: 'plan', assignments: {}, schoolVisited: false,
     points: difficultyRules[difficulty].points, elapsed: 0, durationSec: 0, observations: [], talks: [],
     paths: {}, ranked: null, ending: null, watched: scores(), attention: scores(), answers: [], earned: [],
   };
@@ -49,7 +52,12 @@ export function toSave(state: CampState) {
 export function fromSave(input: unknown): CampState | null {
   const result = saveSchema.safeParse(input);
   if (!result.success) return null;
-  const state = result.data;
+  const { schoolVisited, elapsed, ...rest } = result.data;
+  const state: CampState = {
+    ...rest,
+    schoolVisited: schoolVisited ?? false,
+    elapsed: schoolVisited === undefined ? elapsed * slotSeconds / legacySlotSeconds : Math.min(elapsed, slotSeconds),
+  };
   for (const [teen, room] of Object.entries(state.assignments)) {
     if (!teenById.has(teen) || !roomById.has(room)) delete state.assignments[teen];
   }
@@ -76,8 +84,12 @@ export function assign(state: CampState, teen: string, room: string) {
   return { ...state, assignments: { ...state.assignments, [teen]: room } };
 }
 
+export function visitSchool(state: CampState): CampState {
+  return state.phase === 'plan' && !state.schoolVisited ? { ...state, schoolVisited: true } : state;
+}
+
 export function startSlot(state: CampState): CampState {
-  return state.phase === 'plan' && isReady(state) ? { ...state, phase: 'watch', elapsed: 0 } : state;
+  return state.phase === 'plan' && state.schoolVisited && isReady(state) ? { ...state, phase: 'watch', elapsed: 0 } : state;
 }
 
 export function tick(state: CampState, seconds: number, viewing: string | null): CampState {
@@ -108,8 +120,8 @@ export function activity(state: CampState, teen: Teen) {
   const room = roomById.get(state.assignments[teen.id]);
   if (state.phase !== 'watch' || !room) return null;
   const offset = Math.floor(seeded(state.seed, teen.id) * 3);
-  const beat = Math.floor((state.elapsed + offset) / 11);
-  const local = state.elapsed + offset - beat * 11;
+  const beat = Math.floor((state.elapsed + offset) / signalBeatSeconds);
+  const local = (state.elapsed + offset) % signalBeatSeconds;
   const roll = seeded(state.seed, [currentSlot(state), teen.id, room.id, beat].join(':'));
   const interaction = camp.interactions.find(rule => rule.teen === teen.id && state.assignments[rule.with] === room.id && (!rule.type || rule.type === room.type));
   const natural = teen.profile[room.type];
@@ -238,7 +250,7 @@ export function spreadAssignments(index = 0) {
 }
 
 export function demoEnding(state: CampState, ending: 'good' | 'mixed' | 'ranked') {
-  const demo: CampState = { ...createGame(state.difficulty, state.seed), completed: totalSlots, day: 2, slot: 2, phase: 'rank' };
+  const demo: CampState = { ...createGame(state.difficulty, state.seed), completed: totalSlots, day: 2, slot: 2, phase: 'rank', schoolVisited: true };
   for (const teen of camp.teens) {
     demo.paths[teen.id] = ending === 'mixed' ? 'explore' : teen.wish;
     if (ending === 'good') {
@@ -250,5 +262,3 @@ export function demoEnding(state: CampState, ending: 'good' | 'mixed' | 'ranked'
   }
   return chooseRanking(demo, ending === 'ranked');
 }
-
-

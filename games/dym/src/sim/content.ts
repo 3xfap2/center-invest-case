@@ -1,5 +1,15 @@
 import { z } from 'zod'
 
+const adjacent = [[-1, 0], [1, 0], [0, -1], [0, 1]] as const
+const tileAt = (map: readonly string[], x: number, z: number) => map[z]?.[x] ?? '#'
+
+export function doorAxis(map: readonly string[], x: number, z: number): 'x' | 'z' | undefined {
+  const [west, east, north, south] = adjacent.map(([dx, dz]) => tileAt(map, x + dx, z + dz))
+  const walkable = (tile: string) => tile === '.' || tile === 's'
+  if (west === '#' && east === '#' && walkable(north) && walkable(south)) return 'z'
+  if (north === '#' && south === '#' && walkable(west) && walkable(east)) return 'x'
+}
+
 const position = z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()])
 const fireKind = z.enum(['solid', 'oil', 'electric'])
 const objectiveKind = z.enum(['vent', 'gas', 'agent', 'power', 'door', 'goods'])
@@ -23,22 +33,35 @@ const callSchema = z.object({
   const wall = /^#+$/
   check(w >= 3 && call.map.every(row => row.length === w && row[0] === '#' && row[w - 1] === '#') &&
     wall.test(call.map[0]) && wall.test(call.map.at(-1)!), 'Карта должна быть прямоугольной и замкнутой')
-  const tileAt = (x: number, z: number) => call.map[z]?.[x] ?? '#'
-  check(tileAt(...call.spawn) === 's', 'Точка старта должна быть в безопасной зоне')
+  const tile = (x: number, z: number) => tileAt(call.map, x, z)
+  let hasEntrance = false
+  call.map.forEach((row, z) => Array.from(row).forEach((value, x) => {
+    if (value !== 'D' && value !== 's') return
+    const nearby = adjacent.map(([dx, dz]) => tile(x + dx, z + dz))
+    if (value === 's') {
+      check(!nearby.includes('.'), 'Между зданием и безопасной зоной нужна дверь: ' + [x, z].join(', '))
+      return
+    }
+    check(doorAxis(call.map, x, z), 'У двери должны быть два встречных прохода: ' + [x, z].join(', '))
+    hasEntrance ||= nearby.includes('s') && nearby.includes('.')
+  }))
+  check(hasEntrance, 'Нужна входная дверь из безопасной зоны')
+  check(tile(...call.spawn) === 's', 'Точка старта должна быть в безопасной зоне')
   const queue = [call.spawn]
   const visited = new Set([call.spawn.join(',')])
   for (const [x, z] of queue) {
-    const neighbors: [number, number][] = [[x - 1, z], [x + 1, z], [x, z - 1], [x, z + 1]]
+    const neighbors = adjacent.map(([dx, dz]): [number, number] => [x + dx, z + dz])
     for (const next of neighbors) {
       const key = next.join(',')
-      if (tileAt(...next) === '#' || visited.has(key)) continue
+      if (tile(...next) === '#' || visited.has(key)) continue
       visited.add(key)
       queue.push(next)
     }
   }
+  check(visited.size === call.map.join('').replaceAll('#', '').length, 'На карте есть проходы, отрезанные от входа')
   for (const point of [...call.fires, ...call.victims, ...call.props, ...call.objectives]) {
     check(visited.has(point.at.join(',')), 'Недоступная точка: ' + point.at.join(', '))
-    check(tileAt(...point.at) === ('kind' in point && point.kind === 'door' ? 'D' : '.'), 'Неподходящая клетка: ' + point.at.join(', '))
+    check(tile(...point.at) === ('kind' in point && point.kind === 'door' ? 'D' : '.'), 'Неподходящая клетка: ' + point.at.join(', '))
   }
   check(new Set(call.objectives.map(o => o.id)).size === call.objectives.length, 'Повтор ID задачи')
 })

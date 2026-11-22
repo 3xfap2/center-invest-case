@@ -9,7 +9,7 @@ test('production game plays a slot inside the real iframe bridge and reaches eve
   const save = {
     v: 1, difficulty: 'easy', seed: 42, day: 0, slot: 0, completed: 0, phase: 'watch',
     assignments: { liza: 'garden', artem: 'robots', kamila: 'club', timur: 'code', vera: 'studio' },
-    points: 9, elapsed: 58, durationSec: 58, observations: [], talks: [], paths: {},
+    points: 9, elapsed: 53.5, durationSec: 53.5, observations: [], talks: [], paths: {},
     ranked: null, ending: null, watched: empty, attention: empty, answers: [], earned: [],
   };
   await page.route('**/harness', route => route.fulfill({ contentType: 'text/html', body:
@@ -24,7 +24,7 @@ test('production game plays a slot inside the real iframe bridge and reaches eve
     document.querySelector('iframe')!.contentWindow!.postMessage({ ns: 1, type }, location.origin);
   }, type);
   await expect(game.getByRole('dialog', { name: 'Отладка' })).toBeVisible();
-  await expect.poll(async () => (await messages()).some(e => e.type === 'ready' && e.gameId === 'kompas')).toBe(true);
+  await expect.poll(async () => (await messages()).some(e => e.type === 'ready' && e.gameId === 'kompas' && e.version === '0.1.1')).toBe(true);
   await expect(game.locator('canvas.terrain')).toBeVisible();
   await game.getByRole('button', { name: 'Закрыть' }).click();
   await game.getByTestId('teen-liza').click();
@@ -32,6 +32,7 @@ test('production game plays a slot inside the real iframe bridge and reaches eve
   await host('pause');
   await expect(game.getByRole('dialog', { name: 'Пауза' }).getByRole('button')).toHaveText(['Продолжить', 'Звук Выкл.', 'Выйти в меню']);
   const progress = game.getByRole('progressbar', { name: 'Ход мастерской' });
+  await expect(progress).toHaveAttribute('max', '45');
   const elapsed = await progress.getAttribute('value');
   await page.waitForTimeout(700);
   expect(await progress.getAttribute('value')).toBe(elapsed);
@@ -44,6 +45,22 @@ test('production game plays a slot inside the real iframe bridge and reaches eve
   })).toBe(true);
 
   await game.getByRole('button', { name: 'Следующее занятие' }).click();
+  await expect(game.getByRole('button', { name: 'Начать занятие' })).toHaveCount(0);
+  await game.getByTestId('room-garden').click();
+  const locationInfo = game.getByRole('region', { name: 'О локации' });
+  await expect(locationInfo).toContainText('Здесь ухаживают за растениями');
+  await expect(locationInfo).toContainText('Пересадить ростки');
+  await expect(locationInfo).toContainText('Наблюдение за живой природой');
+  await expect(locationInfo).toContainText('Наблюдение по шкале «Природа»');
+  await game.getByRole('button', { name: 'Весь лагерь' }).click();
+  await game.getByTestId('room-school').click();
+  await expect(locationInfo).toContainText('школьным психологом');
+  await expect(locationInfo).toContainText('Дневник наблюдений и доступ к занятиям');
+  await game.getByRole('button', { name: 'Войти в школу' }).click();
+  await game.getByRole('dialog', { name: 'Школа' }).getByRole('button', { name: 'Взять дневник' }).click();
+  await expect(game.getByRole('button', { name: 'Начать занятие' })).toBeEnabled();
+  await expect.poll(async () => (await messages()).some(e => e.type === 'save' &&
+    (e.data as { schoolVisited?: boolean } | undefined)?.schoolVisited === true)).toBe(true);
   const liza = game.getByTestId('teen-liza');
   const studio = game.getByTestId('room-studio');
   await studio.hover();

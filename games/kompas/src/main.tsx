@@ -5,13 +5,13 @@ import { camp, endings, levels, roomById, teenById } from './camp/content';
 import type { Difficulty, Ending } from './camp/content';
 import {
   activity, afterSlot, answerPicture, assign, chooseRanking, createGame, demoEnding, fromSave, observe, outcome,
-  playerRadar, presentPaths, recommend, slotsPerDay, spreadAssignments, startSlot, talk, tick, toSave, totalSlots,
+  playerRadar, presentPaths, recommend, signalBeatSeconds, slotsPerDay, spreadAssignments, startSlot, talk, tick, toSave, totalSlots, visitSchool,
 } from './camp/game';
 import type { CampState } from './camp/game';
 import { CampAudio } from './view/audio';
 import { CampMap, DragGhost, Roster } from './view/CampMap';
 import type { Drag } from './view/CampMap';
-import { CompassLogo, Dialog, EndingScreen, Evening, levelLabels, Paths, SelfQuiz, SelfResult, Sidebar, slotNames } from './view/panels';
+import { CompassLogo, Dialog, EndingScreen, Evening, levelLabels, Paths, SchoolVisit, SelfQuiz, SelfResult, Sidebar, slotNames } from './view/panels';
 import type { World } from './view/world';
 import './style.css';
 
@@ -68,6 +68,7 @@ function App() {
   const [hidden, setHidden] = useState(document.hidden);
   const [exited, setExited] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [schoolOpen, setSchoolOpen] = useState(false);
   const [debugMenu, setDebugMenu] = useState(debug);
   const [revealed, setRevealed] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
@@ -80,7 +81,7 @@ function App() {
   }, []);
   const world = useRef<World | null>(null);
   const audio = useRef(new CampAudio());
-  const blocked = paused || sitePaused || hidden || exited || settings || debugMenu || !sceneReady || !initialized;
+  const blocked = paused || sitePaused || hidden || exited || settings || schoolOpen || debugMenu || !sceneReady || !initialized;
   const blockedRef = useRef(blocked);
   blockedRef.current = blocked;
   const ended = useRef(false);
@@ -182,7 +183,7 @@ function App() {
       const active = latest.current;
       if (blockedRef.current || active.phase !== 'watch') return;
       apply(tick(active, delta, focusRef.current));
-      const beat = Math.floor(active.elapsed / 11);
+      const beat = Math.floor(active.elapsed / signalBeatSeconds);
       if (beat > lastEmote || (beat === 0 && lastEmote > 0)) {
         lastEmote = beat;
         audio.current.play('emote');
@@ -234,7 +235,21 @@ function App() {
     apply(game.phase === 'review' ? afterSlot(game) : startSlot(game));
   };
 
+  const openSchool = () => {
+    setArmed(null);
+    setStatus('');
+    setFocus(camp.school.id);
+    setSchoolOpen(true);
+  };
+
+  const finishSchool = () => {
+    apply(visitSchool(latest.current), { save: true });
+    setSchoolOpen(false);
+    setFocus(null);
+  };
+
   const changeScene = (nextState: CampState) => {
+    setSchoolOpen(false);
     setArmed(null);
     setFocus(null);
     setStatus('');
@@ -273,7 +288,7 @@ function App() {
     ended.current = false;
     flagsSent.current = false;
     const next = { ...createGame(latest.current.difficulty), day, slot, completed: day * slotsPerDay + slot,
-      assignments: spreadAssignments(day + slot) };
+      assignments: spreadAssignments(day + slot), schoolVisited: day + slot > 0 };
     changeScene(next);
     setDebugMenu(false);
   };
@@ -313,10 +328,11 @@ function App() {
           }
         }} setDrag={setDrag} />
       </div>
-      <Sidebar state={state} selected={teen} revealed={revealed} status={status} focus={focus} next={next} />
+      <Sidebar state={state} selected={teen} revealed={revealed} status={status} focus={focus} next={next} openSchool={openSchool} />
     </main>
     <DragGhost drag={drag} />
     {!(initialized && sceneReady) && <div className="boot"><b>Компас</b><p>Педагог-психолог · профконсультант</p><progress max="100" value={sceneReady ? 85 : initialized ? 60 : 35} aria-label="Загрузка" /></div>}
+    {schoolOpen && !exited && <SchoolVisit finish={finishSchool} close={() => setSchoolOpen(false)} />}
     {initialized && !main && !exited && <>
       {state.phase === 'talk' && <Evening state={state} selected={teen} pick={select} ask={(id, q) => {
         audio.current.play('note'); apply(talk(latest.current, id, q), { save: true });
@@ -344,7 +360,7 @@ function App() {
       <div className="difficulty-select" aria-label="Сложность">{levels.map(level => <button key={level} aria-pressed={state.difficulty === level}
         disabled={state.completed > 0 || state.phase !== 'plan'} onClick={() => {
           const start = createGame(level, state.seed);
-          apply({ ...start, assignments: state.assignments }, { save: true });
+          apply({ ...start, assignments: state.assignments, schoolVisited: state.schoolVisited }, { save: true });
         }}>{levelLabels[level]}</button>)}</div>
       <button className="primary" onClick={() => { persist(latest.current); setSettings(false); }}>К лагерю</button>
     </Dialog>}

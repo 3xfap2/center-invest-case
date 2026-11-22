@@ -2,10 +2,10 @@
   "id": "kompas",
   "title": "Компас",
   "profession": "Педагог-психолог (профконсультант)",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "entry": "index.html",
   "approxSizeMB": 0.28,
-  "minutes": 15,
+  "minutes": 12,
   "controls": "ЛКМ перетащить, ПКМ повернуть, колесо приблизить, Esc пауза",
   "credits": "CREDITS.md",
   "achievements": {

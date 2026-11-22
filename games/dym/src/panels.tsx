@@ -98,7 +98,7 @@ export function Buy({ game }: { game: Game }) {
       return <button key={id} className={'gear-card' + (selected ? ' selected' : '')} aria-pressed={selected}
         onClick={() => game.chooseGear(id)} disabled={!selected && game.budget < item.cost}>
         <span className="gear-icon" aria-hidden="true">{gearIcons[item.symbol]}</span><b>{item.name}</b>
-        <small>{item.description}</small><span className="cost">{selected ? '✓ ВЗЯТО' : item.cost + ' ед.'}</span>
+        <small>{game.selectedOwner === 'you' ? item.description : item.partnerDescription}</small><span className="cost">{selected ? '✓ ВЗЯТО' : item.cost + ' ед.'}</span>
       </button>
     })}</div>
     <div className="panel-foot"><span>Штатный ствол с узкой струёй входит в комплект.</span>
@@ -124,7 +124,7 @@ export function Debrief({ game }: { game: Game }) {
   return <Panel tag={'ИТОГ ВЫЗОВА ' + number(game.call.number)} title={reason[r.status]} className="debrief">
     <div className="debrief-grid">
       <div className="mvp"><Patch /><span>ОТЛИЧИЛСЯ НА ВЫЗОВЕ</span><strong>{hero}</strong>
-        <small>{hero === 'Лёша' ? 'Прикрыл звено водой.' : r.saved ? 'Организовал эвакуацию.' : 'Завершил выезд в составе звена.'}</small></div>
+        <small>{hero === 'Лёша' ? 'Помог звену на вызове.' : r.saved ? 'Организовал эвакуацию.' : 'Завершил выезд в составе звена.'}</small></div>
       <div className="score-grid">
         <div><span>ЛЮДИ СПАСЕНЫ</span><strong>{r.saved}<small> / {r.total}</small></strong></div>
         <div><span>ИМУЩЕСТВО</span><strong>{r.property}<small>%</small></strong></div>
@@ -172,17 +172,42 @@ export function Finale({ game }: { game: Game }) {
   </Panel>
 }
 
+function FieldGear({ game }: { game: Game }) {
+  const round = game.round!
+  const activate = (id: Gear) => { round.useGear(id); game.update() }
+  const button = (id: Gear) => {
+    if (id === 'spray') return round.sprayWide ? 'Узкая струя' : 'Включить'
+    if (id === 'thermal') return round.thermal ? 'Выключить' : 'Включить'
+    if (id === 'cylinder') return round.spare ? 'Подключить' : 'Использован'
+    if (id === 'fan' && round.fanPosition) return 'Работает'
+    return round.handTool === id ? 'Убрать' : 'Подготовить'
+  }
+  return <>
+    <h2 id="pause-title">Снаряжение</h2>
+    <div className="pack"><b>Твой комплект</b>
+      {game.equipment.you.length ? game.equipment.you.map(id =>
+        <div className="pack-item" key={id}>
+          <div><strong>{gear[id].name}</strong><small>{gear[id].description}</small></div>
+          <button className="secondary" disabled={(id === 'cylinder' && !round.spare) ||
+            (id === 'fan' && !!round.fanPosition)} onClick={() => activate(id)}>{button(id)}</button>
+        </div>) : <span>Штатный комплект</span>}
+      {round.noticeClock > 0 && <small role="status">{round.notice}</small>}
+    </div>
+    <div className="pack"><b>Комплект Лёши</b>
+      {game.equipment.partner.length ? game.equipment.partner.map(id =>
+        <div className="pack-item" key={id}><div><strong>{gear[id].name}</strong><small>{gear[id].partnerDescription}</small></div></div>) :
+        <span>Штатный комплект</span>}
+      <small><Key>4</Key> Поручить действие под прицелом или передать пострадавшего</small>
+    </div>
+    <button className="primary" onClick={() => game.unpause()}>Продолжить</button>
+  </>
+}
+
 export function Pause({ game }: { game: Game }) {
-  return <div className="modal-shade"><section className="modal" aria-labelledby="pause-title" role="dialog" aria-modal="true">
+  return <div className="modal-shade"><section className={'modal' + (game.paused === 'gear' ? ' field-gear' : '')}
+    aria-labelledby="pause-title" role="dialog" aria-modal="true">
     <div className="eyebrow"><span /> ПОЖАРНАЯ ЧАСТЬ № 3</div>
-    {game.paused === 'gear' ? <>
-      <h2 id="pause-title">Снаряжение</h2>
-      {(['you','partner'] as const).map(owner => <div className="pack" key={owner}>
-        <b>{owner === 'you' ? 'Ты' : 'Лёша'}</b><span>{game.equipment[owner].length
-          ? game.equipment[owner].map(id => gear[id].name).join(' · ') : 'Штатный комплект'}</span>
-      </div>)}
-      <button className="primary" onClick={() => game.unpause()}>Продолжить</button>
-    </> : <>
+    {game.paused === 'gear' ? <FieldGear game={game} /> : <>
       <h2 id="pause-title">Пауза</h2>
       {game.worldError && <p>Потеряно подключение к WebGL. Перезагрузи страницу.</p>}
       <button className="primary" disabled={game.sitePaused || game.worldError} onClick={() => game.unpause()}>Продолжить</button>

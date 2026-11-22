@@ -1,9 +1,9 @@
 import * as T from 'three';
-import { axisById, camp, roomById } from '../camp/content';
+import { axisById, camp, locationById, roomById } from '../camp/content';
 import type { Emote } from '../camp/content';
 import { activity, difficultyRules, occupants, symbols } from '../camp/game';
 import type { CampState } from '../camp/game';
-import { batchStatic, box, figure, terrain, toolsFor, workshop } from './models';
+import { batchStatic, box, figure, schoolBuilding, terrain, toolsFor, workshop } from './models';
 
 interface Snapshot { state: CampState; paused: boolean; focus: string | null; hover: string | null; dragging: boolean }
 const startAngle = 0.32;
@@ -52,6 +52,7 @@ export class World {
   private ambient = new T.HemisphereLight('#fff0d0', '#827d5a', 1.85);
   private readonly land;
   private rooms = new Map(camp.workshops.map(room => [room.id, workshop(this.map, room)]));
+  private school = schoolBuilding(this.map);
   private teens = camp.teens.map((teen, index) => {
     const fig = figure(this.map, teen);
     fig.root.traverse(object => { if (object instanceof T.Mesh) object.castShadow = false; });
@@ -110,6 +111,7 @@ export class World {
     this.land = terrain(baseModel);
     compass(baseModel);
     batchStatic(baseModel);
+    batchStatic(this.school);
     for (const room of this.rooms.values()) {
       batchStatic(room.group, room.roof);
       batchStatic(room.roof);
@@ -148,7 +150,9 @@ export class World {
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
     this.point.set((x - rect.left) / rect.width * 2 - 1, -(y - rect.top) / rect.height * 2 + 1);
     this.ray.setFromCamera(this.point, this.camera);
-    const targets = kind === 'room' ? [...this.rooms.values()].map(room => room.group) : this.teens.map(teen => teen.root);
+    const targets = kind === 'room'
+      ? [this.school, ...Array.from(this.rooms.values(), room => room.group)]
+      : this.teens.map(teen => teen.root);
     const hit = this.ray.intersectObjects(targets, true)[0];
     let object: T.Object3D | null = hit?.object ?? null;
     while (object) {
@@ -187,7 +191,7 @@ export class World {
       this.sceneFocus = focus;
       this.zoom = focus ? 1.8 : 1;
     }
-    const room = focus ? roomById.get(focus) : undefined;
+    const room = focus ? locationById.get(focus) : undefined;
     this.goal.set(room?.position[0] ?? 0, room ? 1.14 : 0.3, room?.position[1] ?? -0.15);
     if (!dragging) {
       this.aim.lerp(this.goal, 1 - Math.exp(-dt * 6));
@@ -248,6 +252,8 @@ export class World {
       const label = this.element.querySelector<HTMLElement>('[data-room-label="' + id + '"]');
       if (label) this.project(label, model.group.position.x, watch ? 0.6 : 1.15, model.group.position.z + 2.82);
     }
+    const schoolLabel = this.element.querySelector<HTMLElement>('[data-room-label="school"]');
+    if (schoolLabel) this.project(schoolLabel, this.school.position.x, 0.66, this.school.position.z + 2.57);
     const swing = this.motion * 6;
     for (const item of this.teens) {
       const location = roomById.get(state.assignments[item.teen.id]);

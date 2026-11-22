@@ -11,11 +11,13 @@ export const typeSchema = z.enum(types);
 export const pathSchema = z.enum([...types, 'legal', 'explore']);
 const color = z.string().regex(/^#[0-9a-f]{6}$/i);
 const id = z.string().regex(/^[a-z][a-z0-9_-]*$/);
+const position = z.tuple([z.number().min(-16).max(16), z.number().min(-13).max(10)]);
 const picture = z.object({ type: typeSchema, label: z.string(), image: z.string() });
 const schema = z.object({
   axes: z.array(z.object({ id: typeSchema, short: z.string(), title: z.string(), color, path: z.string(), action: z.string() })).length(5),
-  workshops: z.array(z.object({ id, type: typeSchema, name: z.string(), task: z.string(), program: z.array(z.string()).length(3).optional(), capacity: z.number().int().min(2).max(3),
-    position: z.tuple([z.number().min(-16).max(16), z.number().min(-13).max(10)]) })).min(1),
+  school: z.object({ id: z.literal('school'), name: z.string(), description: z.string(), skill: z.string(), reward: z.string(), brief: z.string(), position }),
+  workshops: z.array(z.object({ id, type: typeSchema, name: z.string(), description: z.string(), skill: z.string(), task: z.string(),
+    program: z.array(z.string()).length(3).optional(), capacity: z.number().int().min(2).max(3), position })).min(1),
   teens: z.array(z.object({ id, name: z.string(), age: z.number().int().min(12).max(15), color, skin: color, hair: color,
     style: z.enum(['bob', 'crop', 'bun', 'pony']), profile: z.record(typeSchema, z.number().int().min(0).max(100)), wish: typeSchema,
     pressure: pathSchema, ownLine: z.string(), parentLine: z.string(),
@@ -28,6 +30,9 @@ const schema = z.object({
 }).superRefine((data, ctx) => {
   for (const key of ['axes', 'teens', 'workshops', 'questions'] as const) {
     if (new Set(data[key].map(item => item.id)).size !== data[key].length) ctx.addIssue({ code: 'custom', path: [key], message: 'Duplicate id' });
+  }
+  if (data.workshops.some(room => room.id === data.school.id)) {
+    ctx.addIssue({ code: 'custom', path: ['workshops'], message: 'The school is a separate location' });
   }
   const teenIds = new Set(data.teens.map(teen => teen.id));
   if (data.interactions.some(rule => !teenIds.has(rule.teen) || !teenIds.has(rule.with) || rule.teen === rule.with))
@@ -46,6 +51,6 @@ export type Path = z.infer<typeof pathSchema>;
 export type Teen = typeof camp.teens[number];
 export type Workshop = typeof camp.workshops[number];
 export const roomById = new Map(camp.workshops.map(room => [room.id, room]));
+export const locationById = new Map([...camp.workshops, camp.school].map(location => [location.id, location]));
 export const teenById = new Map(camp.teens.map(teen => [teen.id, teen]));
 export const axisById = Object.fromEntries(camp.axes.map(axis => [axis.id, axis])) as Record<Axis, typeof camp.axes[number]>;
-
