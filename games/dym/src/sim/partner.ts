@@ -3,13 +3,16 @@ import type { Vec } from './index'
 
 export const distance = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.z - b.z)
 
-export function clearLine(fire: FireGrid, a: Vec, b: Vec, allowLast = false) {
+export function clearLine(fire: FireGrid, a: Vec, b: Vec, allowLast = false, radius = 0) {
   const steps = Math.ceil(distance(a, b) / .14)
   const end = fire.index(b.x, b.z)
   for (let i = 1; i <= steps; i++) {
     const t = i / steps
-    const cell = fire.index(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t)
+    const x = a.x + (b.x - a.x) * t
+    const z = a.z + (b.z - a.z) * t
+    const cell = fire.index(x, z)
     if (fire.blocked(cell) && !(allowLast && cell === end)) return false
+    if (radius && corners.some(([dx, dz]) => fire.blocked(fire.index(x + radius * dx, z + radius * dz)))) return false
   }
   return true
 }

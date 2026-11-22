@@ -252,6 +252,12 @@ blockquote { border-left: 2px solid #b98d63; display: flex; align-items: baselin
 .modal :is(p,small) { margin: 4px 0; color: var(--sub); font-size: 13px; line-height: 1.45; }
 .modal .pack { display: grid; gap: 5px; background: #30362b; border: 1px solid #626756; padding: 8px 9px; }
 .modal .pack span { color: var(--dim); font-size: 13px; }
+.field-gear { width: min(560px, calc(100% - 32px)); }
+.pack-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px solid #555f4c; }
+.pack-item div { display: grid; }
+.pack-item strong { font-size: 14px; }
+.pack-item .secondary { min-height: 34px; min-width: 100px; font-size: 13px; }
+.field-keys > div:empty { display: none; }
 .capture h2 { font-size: 32px; }
 .debug-menu { position: absolute; z-index: 12; right: 12px; bottom: 8px; padding: 5px 7px; background: #20251ef5;
   border: 1px solid #958775; color: var(--sub); font: 700 11px var(--mono); }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject, PointerEvent as ReactPointer } from 'react';
-import { axisById, camp, roomById } from '../camp/content';
+import { axisById, camp, locationById, roomById } from '../camp/content';
 import { activity, labels, occupants } from '../camp/game';
 import type { CampState } from '../camp/game';
 import { portrait } from './illustration';
@@ -59,7 +59,8 @@ export function CampMap(props: MapProps) {
   useEffect(() => {
     const roomAt = (x: number, y: number) => {
       const target = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-room-label]');
-      return target?.dataset.roomLabel ?? world.current?.pick(x, y, 'room') ?? null;
+      const id = target?.dataset.roomLabel ?? world.current?.pick(x, y, 'room');
+      return id && roomById.has(id) ? id : null;
     };
     const move = (e: PointerEvent) => {
       if (live.current.paused) return;
@@ -107,8 +108,8 @@ export function CampMap(props: MapProps) {
   const inside = state.phase !== 'plan';
   const pickRoom = (id: string) => {
     if (dragLive.current?.moved || paused) return;
-    if (state.phase === 'plan' && armed) assign(armed, id);
-    setFocus(focus === id ? null : id);
+    if (state.phase === 'plan' && armed && roomById.has(id)) assign(armed, id);
+    setFocus(id);
   };
   const pickCanvas = (e: ReactPointer<HTMLDivElement>) => {
     if (paused) return;
@@ -124,7 +125,7 @@ export function CampMap(props: MapProps) {
     if (e.pointerType === 'touch' && e.button === 0 && e.target instanceof HTMLCanvasElement) right.current = e.clientX;
   };
 
-  const title = inside ? [state.slot === 2 ? 'Золотой час' : 'Мастерские открыты', focus ? roomById.get(focus)?.name : 'Лагерь на Дону'] :
+  const title = inside ? [state.slot === 2 ? 'Золотой час' : 'Мастерские открыты', (focus && locationById.get(focus)?.name) || 'Лагерь на Дону'] :
     [state.day === 0 ? 'Лагерь на Дону' : camp.days[state.day].title, 'Компас'];
 
   return <div className={'map ' + (night ? 'night ' : '') + (fallback ? 'fallback' : '')} ref={node}
@@ -144,10 +145,16 @@ export function CampMap(props: MapProps) {
     </div>
     <div className="map-north" aria-hidden="true"><b>С</b><span>✧</span></div>
     {active && <div className="map-anchors">
+      <button data-room-label={camp.school.id} data-testid="room-school" aria-pressed={focus === camp.school.id}
+        className={'room-pin school-pin ' + (focus === camp.school.id ? 'pin-on' : '')}
+        onClick={() => pickRoom(camp.school.id)}>
+        <span aria-hidden="true">⌂</span>{camp.school.name}
+        <small>{state.schoolVisited ? 'Посещено' : 'Первый шаг'}</small>
+      </button>
       {camp.workshops.map((room, index) => <button key={room.id} data-room-label={room.id} data-testid={'room-' + room.id}
         className={'room-pin ' + (hover === room.id || focus === room.id ? 'pin-on' : '')}
         style={{ '--accent': axisById[room.type].color, '--fallback-i': index } as React.CSSProperties}
-        onClick={() => pickRoom(room.id)} title={room.program?.[state.day] ?? room.task}>
+        aria-pressed={focus === room.id} onClick={() => pickRoom(room.id)} title={room.program?.[state.day] ?? room.task}>
         <span>{marks[room.type]}</span>{room.name}{state.phase === 'plan' && <small>{occupants(state, room.id).length}/{room.capacity}</small>}
       </button>)}
       {inside && camp.teens.map((teen, index) => {

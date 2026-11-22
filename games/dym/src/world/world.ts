@@ -3,7 +3,7 @@ import * as T from 'three'
 import { STEP, eyeHeight, type Input, type Round } from '../sim'
 import { clearLine, distance } from '../sim/partner'
 import { Effects } from './effects'
-import { building, character, nozzle, stationBackdrop } from './models'
+import { building, character, fieldTools, nozzle, stationBackdrop } from './models'
 import { Sound } from './sound'
 
 interface Hooks {
@@ -27,6 +27,9 @@ export class World {
   private readonly equipmentCamera = new T.PerspectiveCamera(58, 1, .035, 3)
   private readonly hose = nozzle()
   private readonly responder = character('responder')
+  private readonly partnerNozzle = nozzle()
+  private readonly tools = fieldTools()
+  private readonly deployedFan = this.tools.fan.clone()
   private readonly lantern = new T.PointLight(0xffe5b5, 1.75, 7.3, 1.8)
   private doors = new Map<number, T.Group>()
   private victims: T.Group[] = []
@@ -72,7 +75,11 @@ export class World {
     this.fieldEffects = new Effects(this.renderer.getPixelRatio(), 2)
     this.menu.add(this.menuEffects.group)
     this.scene = this.menu
-    this.equipmentView.add(new T.HemisphereLight(0xd5e4d7, 0x4d3a27, 2.8), this.hose)
+    this.equipmentView.add(new T.HemisphereLight(0xd5e4d7, 0x4d3a27, 2.8), this.hose, ...Object.values(this.tools))
+    this.partnerNozzle.position.set(.14, .56, .28)
+    this.partnerNozzle.rotation.y = Math.PI
+    this.partnerNozzle.scale.setScalar(.66)
+    this.responder.add(this.partnerNozzle)
     const cast = new T.DirectionalLight(0xffd19c, 2)
     cast.position.set(1, 2, -.3)
     this.equipmentView.add(cast)
@@ -118,7 +125,7 @@ export class World {
     fill.position.set(6, 10, 3)
     const { group, doors } = building(round)
     this.doors = doors
-    this.scene.add(ambient, fill, group, this.lantern, this.fieldEffects.group, this.responder)
+    this.scene.add(ambient, fill, group, this.lantern, this.fieldEffects.group, this.responder, this.deployedFan)
     this.lastPartner.set(round.partner.x, round.partner.z)
     this.responder.rotation.y = Math.PI
     this.victims = round.victims.map(v => {
@@ -157,7 +164,7 @@ export class World {
   }
 
   private disposeRound() {
-    this.scene.remove(this.fieldEffects.group, this.responder, this.lantern)
+    this.scene.remove(this.fieldEffects.group, this.responder, this.lantern, this.deployedFan)
     this.scene.traverse(object => { if (object instanceof T.InstancedMesh) object.dispose() })
     this.scene.clear()
     this.markerHost.replaceChildren()
@@ -251,18 +258,21 @@ export class World {
     if (!this.active || !this.round || (e.target instanceof HTMLElement && /^(INPUT|BUTTON|SELECT)$/.test(e.target.tagName) && !this.canPlay)) return
     if (e.code === 'Escape') { e.preventDefault(); this.hooks.paused(); return }
     if (!this.canPlay) return
-    const controls = ['KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight','KeyC','KeyE','KeyF','KeyB','KeyX',
-      'Digit1','Digit2','Digit3','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space']
+    const controls = ['KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight','KeyC','KeyE','KeyF','KeyB','KeyQ','KeyR','KeyX',
+      'Digit1','Digit2','Digit3','Digit4','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space']
     if (!controls.includes(e.code)) return
     e.preventDefault()
     this.keys.add(e.code)
     if (e.repeat) return
-    if (e.code === 'KeyF') this.round.toggleThermal()
+    if (e.code === 'KeyF') this.round.useGear('thermal')
+    if (e.code === 'KeyQ') this.round.useGear('spray')
+    if (e.code === 'KeyR') this.round.useGear('cylinder')
     if (e.code === 'KeyB') this.hooks.gear()
     if (e.code === 'KeyX') this.round.withdraw()
     if (e.code === 'Digit1') this.round.order('follow')
     if (e.code === 'Digit2') this.round.order('hold')
     if (e.code === 'Digit3') this.round.order('cover')
+    if (e.code === 'Digit4') this.round.orderHelp()
   }
 
   private input(dt: number): Input {
@@ -288,14 +298,34 @@ export class World {
     this.lantern.intensity = r.thermal ? 2.4 : 1.65
     this.responder.position.set(r.partner.x, .004, r.partner.z)
     const delta = new T.Vector2(r.partner.x, r.partner.z).sub(this.lastPartner)
-    if (r.coverTarget) this.responder.rotation.y = Math.atan2(r.coverTarget.x - r.partner.x, r.coverTarget.z - r.partner.z)
+    const cover = r.crew.coverTarget
+    this.partnerNozzle.visible = cover !== null
+    if (cover) this.responder.rotation.y = Math.atan2(cover.x - r.partner.x, cover.z - r.partner.z)
     else if (delta.lengthSq() > .0001) this.responder.rotation.y = Math.atan2(delta.x, delta.y)
     this.lastPartner.set(r.partner.x, r.partner.z)
     this.doors.forEach((pivot, i) => {
       pivot.rotation.y = T.MathUtils.lerp(pivot.rotation.y, r.fire.doors.has(i) ? -Math.PI / 2 : 0, Math.min(1, dt * 9))
     })
-    this.victims.forEach((model, i) => { model.visible = r.victims[i].state === 'waiting' })
-    this.hose.visible = !r.carrying
+    this.victims.forEach((model, i) => {
+      const person = r.victims[i]
+      const onPartner = r.crew.carrying === person
+      model.visible = person.state === 'waiting' || onPartner
+      if (onPartner) {
+        const yaw = this.responder.rotation.y
+        model.scale.y = model.scale.x
+        model.position.set(r.partner.x + Math.sin(yaw) * .40, .70, r.partner.z + Math.cos(yaw) * .40)
+        model.rotation.set(0, yaw, -Math.PI / 2, 'YXZ')
+      }
+    })
+    this.deployedFan.visible = r.fanPosition !== null
+    if (r.fanPosition) this.deployedFan.position.set(r.fanPosition.x + .24, .005, r.fanPosition.z)
+    const heldTool = r.handTool && !r.spraying && !r.carrying ? this.tools[r.handTool] : null
+    for (const item of Object.values(this.tools)) item.visible = item === heldTool
+    if (heldTool) {
+      heldTool.position.set(.23 + stride * .52, -.22 + stride * .3, -.63)
+      heldTool.rotation.set(.14, -.24, -.12)
+    }
+    this.hose.visible = !r.carrying && !heldTool
     this.hose.position.set(.226 + stride * .52, -.178 + stride * .3, -.49 + r.recoil * .48)
     this.hose.rotation.set(.094 + r.recoil, -.095, -.08)
     this.fieldEffects.frame(r, this.yaw, this.pitch)

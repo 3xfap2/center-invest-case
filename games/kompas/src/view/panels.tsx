@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import career from '../../content/career.json';
 import meta from '../../game.json';
-import { axisById, camp, roomById, types } from '../camp/content';
+import { axisById, camp, locationById, roomById, types } from '../camp/content';
 import type { Axis, Path, Teen } from '../camp/content';
 import { activity, afterTalk, currentSlot, difficultyRules, isReady, labels, leadingSuggestion, outcome, pathName, playerRadar, profile, readyPaths, slotSeconds, symbols } from '../camp/game';
 import type { CampState } from '../camp/game';
@@ -46,8 +46,9 @@ export function CompassLogo() {
   return <span className="brand-icon" aria-hidden="true"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="12.8" stroke="currentColor" fill="none" strokeWidth="1"/><path d="M23.5 12.5 20 20l-7.5 3.5L16 16z" fill="currentColor"/><path d="M18 3.5v4m0 21v4m-14.5-14.5h4m21 0h4" stroke="currentColor" strokeWidth="1"/></svg></span>;
 }
 
-export function Sidebar({ state, selected, revealed, status, focus, next }: {
+export function Sidebar({ state, selected, revealed, status, focus, next, openSchool }: {
   state: CampState; selected: Teen; revealed: boolean; status: string; focus: string | null; next: () => void;
+  openSchool: () => void;
 }) {
   const data = camp.days[state.day];
   const values = profile(state, selected, revealed);
@@ -59,15 +60,27 @@ export function Sidebar({ state, selected, revealed, status, focus, next }: {
   const count = Object.keys(state.assignments).length;
   const signal = activity(state, selected);
   const saw = state.observations.some(item => item.teen === selected.id && item.slot === currentSlot(state));
-  const pct = Math.round(state.elapsed / slotSeconds * 100);
+  const remaining = Math.ceil(slotSeconds - state.elapsed);
+  const location = focus ? locationById.get(focus) : undefined;
+  const workshop = focus ? roomById.get(focus) : undefined;
+  const needsSchool = state.phase === 'plan' && !state.schoolVisited;
   return <aside className="sidebar">
     <div className="side-heading"><div><small>ДЕНЬ {state.day + 1} ИЗ {camp.days.length}</small><h2>{data.title}</h2></div><span className="day-sun" aria-hidden="true">{state.slot === 2 ? '☾' : '☀'}</span></div>
     <div className="slot-tabs">{slotNames.map((label, index) => <span key={label} className={index === state.slot ? 'current' : index < state.slot ? 'done' : ''}><i />{label}</span>)}</div>
-    <div className="context">
+    {location ? <section className="context location-info" aria-label="О локации" aria-live="polite">
+      <h3>{location.name}</h3>
+      <p>{location.description}</p>
+      <dl className="location-details">
+        <div><dt>Навык</dt><dd>{location.skill}</dd></div>
+        <div><dt>Что даёт</dt><dd>{workshop ? 'Наблюдение по шкале «' + axisById[workshop.type].short + '»' : camp.school.reward}</dd></div>
+        {workshop && <div><dt>Сегодня</dt><dd>{workshop.program?.[state.day] ?? workshop.task}</dd></div>}
+      </dl>
+    </section> : <div className="context">
       <small>{watching ? 'НАБЛЮДЕНИЕ' : state.phase === 'review' ? 'ЗАНЯТИЕ ЗАВЕРШЕНО' : data.speaker}</small>
-      <p>{watching ? (focus ? (roomById.get(focus)?.program?.[state.day] ?? roomById.get(focus)?.task) : 'Щёлкни по участнику, пока виден знак эмоции.') :
-        state.phase === 'review' ? 'Сверь заметки и переходи дальше.' : data.line}</p>
-    </div>
+      <p>{watching ? 'Щёлкни по участнику, пока виден знак эмоции.' :
+        state.phase === 'review' ? 'Сверь заметки и переходи дальше.' :
+        needsSchool ? 'Перед занятиями зайди в школу за дневником наблюдений.' : data.line}</p>
+    </div>}
     <section className="profile" aria-label="Профиль участника">
       <div className="profile-title">
         <img src={portrait(selected)} alt="" />
@@ -81,12 +94,14 @@ export function Sidebar({ state, selected, revealed, status, focus, next }: {
         latest?.text ?? (found ? 'Профиль открыт в отладке.' : 'Профиль проявится после наблюдений.'))}</div>
     </section>
     {watching || state.phase === 'review' ? <>
-      <div className="watch-line"><span>Наблюдения <b>{state.points}/{difficultyRules[state.difficulty].points}</b></span><span>{watching ? pct + '%' : 'Готово'}</span></div>
+      <div className="watch-line"><span>Наблюдения <b>{state.points}/{difficultyRules[state.difficulty].points}</b></span><span>{watching ? 'Осталось ' + remaining + ' с' : 'Готово'}</span></div>
       <progress className="watch-progress" value={state.elapsed} max={slotSeconds} aria-label="Ход мастерской" />
       {state.phase === 'review' && <button className="primary main-action" onClick={next}>{state.slot === 2 ? 'К разговору' : 'Следующее занятие'} <b>→</b></button>}
     </> : <div className="side-action">
       <div className="watch-line"><span>Распределено</span><b>{count}/{camp.teens.length}</b></div>
-      <button className="primary main-action" disabled={outside || !ready} onClick={next}>Начать занятие <b>→</b></button>
+      {needsSchool ? <button className="primary main-action" onClick={openSchool}>
+        {focus === camp.school.id ? 'Войти в школу' : 'Посетить школу'} <b>→</b>
+      </button> : <button className="primary main-action" disabled={outside || !ready} onClick={next}>Начать занятие <b>→</b></button>}
     </div>}
   </aside>;
 }
@@ -98,6 +113,16 @@ export function Dialog({ title, sub, children, className = '' }: { title: string
       {children}
     </section>
   </div>;
+}
+
+export function SchoolVisit({ finish, close }: { finish: () => void; close: () => void }) {
+  return <Dialog title={camp.school.name} sub="ГАЛИНА ПЕТРОВНА · ШКОЛЬНЫЙ ПСИХОЛОГ">
+    <p>{camp.school.brief}</p>
+    <div className="dialog-actions">
+      <button className="primary" onClick={finish}>Взять дневник</button>
+      <button className="secondary" onClick={close}>Вернуться к карте</button>
+    </div>
+  </Dialog>;
 }
 
 export function Evening({ state, selected, pick, ask, next }: {

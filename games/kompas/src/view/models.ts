@@ -114,8 +114,9 @@ export function terrain(parent: T.Group) {
   slab(parent, sand, 0.105, -0.14, mat('#d6af75'));
   slab(parent, green, 0.10, -0.10, mat('#9aaa6a'));
 
-  for (const room of camp.workshops) {
-    const [x, z] = room.position;
+  const locations = [...camp.workshops, camp.school];
+  for (const location of locations) {
+    const [x, z] = location.position;
     path(parent, new T.Vector2(x, z + 2.1), new T.Vector2(x * 0.64, 0.5 + z * 0.25), 1.28, '#c9ae79');
     path(parent, new T.Vector2(x * 0.64, 0.5 + z * 0.25), new T.Vector2(0, 1.4), 1.28, '#c9ae79');
   }
@@ -158,7 +159,7 @@ export function terrain(parent: T.Group) {
     const z = rng() * 27 - 16;
     if ((Math.abs(x) > 17 && z < -13) || (z > 7.8 && x > -11 && x < 5)) continue;
     if (z > -12 && Math.abs(x) < 17 && (z < 5 || rng() < 0.72)) continue;
-    if (camp.workshops.some(room => Math.hypot(room.position[0] - x, room.position[1] - z) < 4.4)) continue;
+    if (locations.some(location => Math.hypot(location.position[0] - x, location.position[1] - z) < 4.4)) continue;
     const h = 0.75 + rng() * 1.1;
     const s = 0.46 + rng() * 0.64;
     dummy.position.set(x, h * 0.49, z);
@@ -195,7 +196,7 @@ export function terrain(parent: T.Group) {
   let fleckCount = 0;
   for (let i = 0; i < 104; i++) {
     const x = rng() * 39 - 19.5, z = rng() * 25 - 15.5;
-    if (camp.workshops.some(room => Math.hypot(room.position[0] - x, room.position[1] - z) < 3.5)) continue;
+    if (locations.some(location => Math.hypot(location.position[0] - x, location.position[1] - z) < 3.5)) continue;
     if (Math.abs(x) < 3.3 && Math.abs(z - 1.4) < 3.3) continue;
     dummy.position.set(x, 0.06, z);
     dummy.scale.set(0.055 + rng() * 0.18, 0.06 + rng() * 0.14, 0.08);
@@ -259,6 +260,48 @@ function table(g: T.Group, x: number, z: number, w: number, tint = pale) {
   for (const side of [-1, 1]) {
     box(g, 0.17, 0.72, 0.55, x + side * (w / 2 - 0.18), 0.59, z, cedar);
   }
+}
+
+export function schoolBuilding(parent: T.Group) {
+  const building = new T.Group();
+  const [x, z] = camp.school.position;
+  building.position.set(x, 0, z);
+  building.userData.room = camp.school.id;
+  parent.add(building);
+
+  const stone = '#e0cba3';
+  const slate = '#496579';
+  const trim = '#758da0';
+  box(building, 6.45, 0.25, 4.12, 0, 0.14, 0, '#938273');
+  box(building, 6, 2.42, 3.72, 0, 1.43, 0, stone);
+  box(building, 6.12, 0.18, 3.82, 0, 2.67, 0, '#f4dcaf');
+  for (const side of [-1, 1]) {
+    const roof = box(building, 6.7, 0.16, 2.24, 0, 3.07, side * 0.99, slate);
+    roof.rotation.x = side * 0.37;
+  }
+  box(building, 6.72, 0.14, 0.14, 0, 3.51, 0, trim);
+  box(building, 2.22, 0.66, 0.25, 0, 2.63, 2.03, '#eddbb9');
+  box(building, 1.12, 1.62, 0.13, 0, 1.1, 1.9, '#41566a');
+  box(building, 0.89, 1.45, 0.14, 0, 1.08, 1.97, '#70899a');
+  box(building, 0.06, 1.42, 0.025, 0, 1.08, 2.05, '#41566a');
+  box(building, 1.85, 0.18, 0.57, 0, 0.23, 2.04, '#b5a58e');
+  box(building, 1.95, 0.12, 0.42, 0, 0.09, 2.35, '#c8b69a');
+
+  const clock = cylinder(building, 0.235, 0.235, 0.065, 0, 2.72, 2.19, '#efdcaa', 18);
+  clock.rotation.x = Math.PI / 2;
+  box(building, 0.04, 0.13, 0.025, 0, 2.765, 2.24, slate);
+  box(building, 0.10, 0.04, 0.025, 0.035, 2.71, 2.24, slate);
+
+  for (const front of [-1, 1]) for (const side of [-1, 1]) {
+    const windowX = side * 1.94;
+    const wallZ = front * 1.89;
+    box(building, 1.10, 0.96, 0.075, windowX, 1.51, wallZ, '#a18165');
+    box(building, 0.95, 0.82, 0.083, windowX, 1.51, wallZ + front * 0.02, '#9eacac');
+    box(building, 0.055, 0.81, 0.022, windowX, 1.51, wallZ + front * 0.07, '#f4dcaf');
+    box(building, 0.97, 0.055, 0.022, windowX, 1.51, wallZ + front * 0.07, '#f4dcaf');
+    box(building, 1.18, 0.10, 0.14, windowX, 1.02, wallZ + front * 0.046, '#eddbb9');
+  }
+  return building;
 }
 
 export function workshop(parent: T.Group, room: Workshop) {
