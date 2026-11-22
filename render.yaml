@@ -1,0 +1,19 @@
+# Render Blueprint: the whole platform (site, four games, Go API) as one free Docker web service.
+# Render dashboard → New → Blueprint → this repository. Details: docs/DEPLOY.md.
+services:
+  - type: web
+    name: profnav
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/v1/health
+    # Every deploy restarts the service, and the free plan has no disk: the SQLite file starts empty.
+    # Deploy on purpose, not on every push.
+    autoDeploy: false
+    envVars:
+      # Render sits behind a proxy: rate limits must use the visitor's IP, not the proxy's.
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DB_PATH
+        value: /data/profnav.db

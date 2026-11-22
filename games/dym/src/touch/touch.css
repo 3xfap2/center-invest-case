@@ -86,5 +86,8 @@
 /* Smoke on a phone: the keyboard hints aren't needed, and the air/water gauge moves right of the joystick. */
 @media (pointer: coarse) {
   .game-shell .field-keys { display: none; }
-  .field-bottom .reserves { margin-left: 156px; }
+  .game-shell .field-bottom { justify-content: flex-start; gap: 12px; }
+  .field-bottom .reserves { margin-left: 156px; width: 200px; }
+  .game-shell .partner-status { padding: 5px 8px; gap: 6px; }
+  .game-shell .partner-status small { display: block; max-width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
 }
