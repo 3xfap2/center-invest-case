@@ -1,5 +1,5 @@
 import * as T from 'three'
-import type { Call, PropKind } from '../sim/content'
+import { doorAxis, type Call, type PropKind } from '../sim/content'
 import type { Round, Vec } from '../sim'
 import { seeded } from '../sim/fire'
 
@@ -138,6 +138,23 @@ export function nozzle() {
   return blocks.build()
 }
 
+export function fieldTools() {
+  const axe = new Blocks()
+  axe.box(.08, -.05, .08, .047, .05, .42, 0x9d6940)
+  axe.box(.08, -.016, -.15, .13, .10, .09, 0x71766e)
+  axe.box(.02, -.01, -.17, .048, .075, .108, 0xe98b4c)
+  const fan = new Blocks()
+  fan.box(0, .03, 0, .28, .06, .18, 0xe18d49)
+  fan.box(0, .18, 0, .27, .27, .085, 0xd28b52)
+  fan.box(0, .18, .049, .21, .20, .027, 0x222b26)
+  fan.box(0, .18, .069, .17, .035, .013, 0x6f8374, .2)
+  fan.box(0, .18, .069, .035, .17, .013, 0x6f8374)
+  const stretcher = new Blocks()
+  for (const x of [-.12, .12]) stretcher.box(x, -.04, 0, .032, .033, .5, 0xde8d5b)
+  stretcher.box(0, -.038, 0, .23, .019, .40, 0x69755b)
+  return { axe: axe.build(), fan: fan.build(), stretcher: stretcher.build() }
+}
+
 export function building(round: Round) {
   const { call, fire } = round
   const group = new T.Group()
@@ -185,7 +202,7 @@ export function building(round: Round) {
         const door = new T.Group()
         const frame = new Blocks()
         const panel = new Blocks()
-        const horizontal = wall(x - 1, z) && wall(x + 1, z)
+        const horizontal = doorAxis(call.map, x, z) === 'z'
         door.position.set(cx, 0, cz)
         door.rotation.y = horizontal ? 0 : Math.PI / 2
         for (const side of [-1, 1]) frame.box(side * .47, .76, 0, .06, 1.52, .14, dark)

@@ -171,10 +171,10 @@ export class Effects {
     if (r.aim) {
       const origin = { ...r.player, y: eyeHeight(r.crouch) - .07 }
       const length = Math.hypot(r.aim.x - origin.x, r.aim.z - origin.z) / Math.max(.36, Math.cos(pitch))
-      const streams = r.has('spray') ? 3 : 1
+      const streams = r.sprayWide ? 3 : 1
       for (let i = 0; i < 110; i++) {
         const t = (this.seeds[i] + time * (1.7 + this.seeds[120 + i] * 1.1)) % 1
-        const wobble = (this.seeds[240 + i] - .5) * (r.has('spray') ? .46 : .11) * t
+        const wobble = (this.seeds[240 + i] - .5) * (r.sprayWide ? .46 : .11) * t
         const at = shotPoint(origin, yaw + wobble + (streams === 3 ? ((i % 3) - 1) * .09 : 0),
           pitch + r.recoil * .55, Math.max(.25, length * t))
         this.water.add(at.x + Math.cos(yaw) * (1 - t) * .22, at.y - (1 - t) * .15, at.z - Math.sin(yaw) * (1 - t) * .22,
@@ -186,12 +186,13 @@ export class Effects {
           r.aim.z + t * Math.sin(i * 2.6) * .55, 8 + t * 14, (1 - t) * .67, this.sprayColor)
       }
     }
-    if (r.coverTarget) {
-      const { x, z } = r.coverTarget
+    if (r.crew.coverTarget) {
+      const { x, z } = r.crew.coverTarget
       for (let i = 0; i < 37; i++) {
         const t = (time * 1.85 + this.seeds[130 + i]) % 1
-        this.water.add(T.MathUtils.lerp(r.partner.x, x, t), .82 - .64 * t * t,
-          T.MathUtils.lerp(r.partner.z, z, t), 7, .72, this.sprayColor)
+        const spread = r.crew.sprayWide ? t * (this.seeds[210 + i] - .5) * .52 : 0
+        this.water.add(T.MathUtils.lerp(r.partner.x, x, t) + spread, .82 - .64 * t * t,
+          T.MathUtils.lerp(r.partner.z, z, t) + spread, 7, .72, this.sprayColor)
       }
     }
     this.flush()
