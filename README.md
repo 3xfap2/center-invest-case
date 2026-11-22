@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/3xfap2/center-invest-case/actions/workflows/ci.yml/badge.svg)](https://github.com/3xfap2/center-invest-case/actions/workflows/ci.yml)
 
-**Играть:** ссылка появится после деплоя · без регистрации, нужен только ник · работает на компьютере, iPhone и Android
+**Играть:** [ссылка](https://profnav-j504.onrender.com/) · без регистрации, нужен только ник · работает на компьютере, iPhone и Android
 
 Кейс банка «Центр-инвест» «ПрофНавигатор: выбери профессию будущего», Cyber Garden School 2026.
 
