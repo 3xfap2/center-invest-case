@@ -5,10 +5,47 @@ import './touch.css'
  * On-screen controls for phones and tablets. The game keeps reading its usual keyboard and mouse
  * events: the pad sends the same events (W/A/S/D from the joystick, keys from the buttons, mouse
  * buttons and movement from the look area), so the game logic doesn't change.
- * Shown only on touch-first devices (coarse pointer); desktop players never see it.
+ * Shown only on phones and tablets; desktop players never see it.
  */
 
-export const isTouchDevice = () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
+export type DeviceKind = 'ios' | 'android' | 'touch' | 'desktop'
+
+/**
+ * iPhone/iPad (Safari and every other iOS browser, which all use WebKit), Android (any browser),
+ * another touch-first device, or a desktop. iPadOS asks for desktop sites with a Mac user agent,
+ * so a "Mac" with a touch screen is an iPad.
+ */
+export function detectDevice(): DeviceKind {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') return 'desktop'
+  const ua = navigator.userAgent || ''
+  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) return 'ios'
+  if (/Android/i.test(ua)) return 'android'
+  const mq = (q: string) => !!window.matchMedia?.(q).matches
+  if (mq('(pointer: coarse)') || (mq('(any-pointer: coarse)') && !mq('(pointer: fine)'))) return 'touch'
+  return 'desktop'
+}
+
+export const isTouchDevice = () => detectDevice() !== 'desktop'
+
+/**
+ * Android browsers can go full screen and lock landscape after a tap; iPhone Safari can't
+ * (no element full screen on iPhone), so there the game simply fills the page.
+ */
+let fullscreenTried = false
+// Safari throws if the finger is already gone; capturing is only a convenience, so ignore that.
+function capture(el: Element, id: number) {
+  try { el.setPointerCapture(id) } catch { /* ignore */ }
+}
+
+function goFullscreen() {
+  if (fullscreenTried || detectDevice() !== 'android') return
+  fullscreenTried = true
+  const el = document.documentElement
+  if (!document.fullscreenEnabled || document.fullscreenElement || !el.requestFullscreen) return
+  el.requestFullscreen({ navigationUI: 'hide' })
+    .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })?.lock?.('landscape'))
+    .catch(() => undefined)
+}
 
 export type PadButton = {
   id: string
@@ -44,6 +81,7 @@ export function TouchPad({ buttons, canvas, look = false }: Props) {
 
   useEffect(() => {
     const root = host.current
+    document.documentElement.dataset.device = detectDevice() // for CSS and for checking on a real phone
     if (!root) return
     const down = new Set<string>()
     const setKeys = (want: Set<string>) => {
@@ -71,7 +109,7 @@ export function TouchPad({ buttons, canvas, look = false }: Props) {
       setKeys(want)
     }
     const stopStick = () => { stickId = null; knob.style.transform = ''; setKeys(new Set()) }
-    const onStickDown = (e: PointerEvent) => { e.preventDefault(); stickId = e.pointerId; ring.setPointerCapture(e.pointerId); moveStick(e) }
+    const onStickDown = (e: PointerEvent) => { e.preventDefault(); goFullscreen(); stickId = e.pointerId; capture(ring, e.pointerId); moveStick(e) }
     const onStickMove = (e: PointerEvent) => { if (e.pointerId === stickId) moveStick(e) }
     const onStickUp = (e: PointerEvent) => { if (e.pointerId === stickId) stopStick() }
     ring.addEventListener('pointerdown', onStickDown)
@@ -89,7 +127,7 @@ export function TouchPad({ buttons, canvas, look = false }: Props) {
       lookId = e.pointerId
       lastX = e.clientX
       lastY = e.clientY
-      area!.setPointerCapture(e.pointerId)
+      capture(area!, e.pointerId)
       sendMouse(canvas?.() ?? null, 'mousedown', { button: 2, buttons: 2, clientX: e.clientX, clientY: e.clientY })
     }
     const onLookMove = (e: PointerEvent) => {
@@ -117,8 +155,9 @@ export function TouchPad({ buttons, canvas, look = false }: Props) {
       if (!el) continue
       let held = false
       const press = (e: PointerEvent) => {
+        goFullscreen()
         e.preventDefault()
-        el.setPointerCapture(e.pointerId)
+        capture(el, e.pointerId)
         el.classList.add('is-down')
         if (b.mouse !== undefined) sendMouse(canvas?.() ?? null, 'mousedown', { button: b.mouse, buttons: b.mouse === 0 ? 1 : 2 })
         if (b.key) sendKey('keydown', b.key)
