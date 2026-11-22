@@ -3,9 +3,8 @@ import { publicGames, type Game } from '../games/catalog';
 import { isDev, navigate } from '../router';
 import { useStore } from '../state/store';
 import { useUi } from '../state/ui';
-import { AchievementBoard } from './AchievementBoard';
 import { Scene } from './Scene';
-import { GameTitle, Logo, PlayIcon } from './parts';
+import { GameTitle, Link, Logo, PlayIcon } from './parts';
 
 const STEPS = [
   { n: '01', title: 'Ник вместо регистрации', text: 'Придумай ник и выбери сложность. Ни почты, ни пароля.' },
@@ -55,6 +54,10 @@ export function Landing() {
             <a className="pn-nav-link" href="#board">
               Табло профессий
             </a>
+            <Link to="/hall" className="pn-nav-link pn-nav-hall" data-testid="nav-hall" aria-label="Зал славы">
+              <span aria-hidden="true" style={{ color: 'var(--pn-green)' }}>★</span>
+              <span className="pn-nav-hall-text">&nbsp;Зал славы</span>
+            </Link>
             <a
               className="pn-btn pn-btn--ghost pn-btn--sm"
               href={startPath()}
@@ -209,9 +212,6 @@ export function Landing() {
               </li>
             </ul>
           </section>
-        </div>
-        <div style={{ paddingBottom: 96 }}>
-          <AchievementBoard />
         </div>
         <footer className="pn-footer">
           <span>ПрофНавигатор · кейс банка «Центр-инвест» «ПрофНавигатор: выбери профессию будущего»</span>

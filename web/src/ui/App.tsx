@@ -6,6 +6,7 @@ import { useStore } from '../state/store';
 import { useUi } from '../state/ui';
 import { Account } from './Account';
 import { GameSelect } from './GameSelect';
+import { Hall } from './Hall';
 import { Landing } from './Landing';
 import { NotFound } from './NotFound';
 import { Notice } from './parts';
@@ -95,6 +96,9 @@ export function App() {
       break;
     case 'games':
       page = hasPlayer ? <GameSelect /> : <Redirect to="/start" />;
+      break;
+    case 'hall':
+      page = <Hall />;
       break;
     case 'account':
       page = <Account />;
