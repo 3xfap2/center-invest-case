@@ -76,7 +76,7 @@ export function CampMap(props: MapProps) {
       setHover(roomAt(e.clientX, e.clientY));
     };
     const up = (e: PointerEvent) => {
-      if (e.button === 2) right.current = null;
+      if (e.button === 2 || e.pointerType === 'touch') right.current = null;
       const current = dragLive.current;
       if (!current || e.button !== 0) return;
       if (!live.current.paused && current.moved) {
@@ -118,8 +118,10 @@ export function CampMap(props: MapProps) {
     }
     if (e.button === 0 && state.phase === 'plan' && e.target instanceof HTMLCanvasElement) {
       const id = world.current?.pick(e.clientX, e.clientY, 'teen');
-      if (id) setDrag(getDrag(id, e));
+      if (id) { setDrag(getDrag(id, e)); return; }
     }
+    // A touch screen has no right button: a one-finger drag on the empty map turns the camp.
+    if (e.pointerType === 'touch' && e.button === 0 && e.target instanceof HTMLCanvasElement) right.current = e.clientX;
   };
 
   const title = inside ? [state.slot === 2 ? 'Золотой час' : 'Мастерские открыты', focus ? roomById.get(focus)?.name : 'Лагерь на Дону'] :

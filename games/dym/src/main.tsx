@@ -5,10 +5,22 @@ import { debug } from './platform'
 import { FieldHUD } from './hud'
 import { Briefing, Buy, Capture, Choice, Debrief, DebugMenu, Finale, Header, MainMenu, Pause } from './panels'
 import './style.css'
+import { TouchPad, isTouchDevice, type PadButton } from './touch/TouchPad'
+
+// Phone controls: the joystick walks, a drag on the right half looks around, the buttons send the usual keys.
+const TOUCH_BUTTONS: PadButton[] = [
+  { id: 'follow', label: 'За мной', key: 'Digit1' },
+  { id: 'hold', label: 'Стой', key: 'Digit2' },
+  { id: 'crouch', label: 'Присесть', key: 'KeyC', hold: true },
+  { id: 'pause', label: 'Пауза', key: 'Escape' },
+  { id: 'act', label: 'Действие', key: 'KeyE', hold: true },
+  { id: 'water', label: 'Вода', key: 'Space', hold: true },
+]
 
 function App() {
   const canvas = useRef<HTMLCanvasElement>(null)
   const markerHost = useRef<HTMLDivElement>(null)
+  const getCanvas = useRef(() => canvas.current).current
   const state = useRef<Game | null>(null)
   const [, update] = useReducer(x => x + 1, 0)
   useEffect(() => {
@@ -38,6 +50,7 @@ function App() {
       {g.phase === 'buy' && <Buy game={g} />}
       {g.phase === 'choice' && <Choice game={g} />}
       {g.phase === 'action' && <FieldHUD game={g} />}
+      {g.phase === 'action' && !g.paused && g.pointer === 'locked' && isTouchDevice() && <TouchPad buttons={TOUCH_BUTTONS} canvas={getCanvas} look />}
       {g.phase === 'debrief' && <Debrief game={g} />}
       {g.phase === 'ending' && <Finale game={g} />}
       {g.paused ? <Pause game={g} /> : g.phase === 'action' && g.pointer !== 'locked' ? <Capture game={g} /> : null}
