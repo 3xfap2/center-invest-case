@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 const endingNames = { good: 'Вместе до рассвета', steady: 'Город просыпается', backup: 'Подмога на рассвете' }
 
-test('сборка, мост, повтор захвата мыши, пауза, сохранение, пять вызовов и три финала', async ({ page }) => {
+test('мост, снаряжение, помощь Лёши, пауза, сохранение, пять вызовов и три финала', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', e => errors.push(e.message))
   page.on('console', e => { if (e.type() === 'error') errors.push(e.text()) })
@@ -44,6 +44,9 @@ test('сборка, мост, повтор захвата мыши, пауза, 
   await frame.getByRole('button', { name: 'К снаряжению' }).click()
   await frame.getByRole('button', { name: /Запасной баллон/ }).click()
   await expect(frame.getByRole('button', { name: /Запасной баллон/ })).toHaveAttribute('aria-pressed', 'true')
+  await frame.getByRole('button', { name: /Распылитель/ }).click()
+  await frame.getByRole('button', { name: 'Лёша', exact: true }).click()
+  await frame.getByRole('button', { name: /Инструмент взлома/ }).click()
   await frame.getByRole('button', { name: 'На вызов' }).click()
   const time = frame.getByTestId('round-time')
   const capture = frame.getByRole('button', { name: 'Кликни, чтобы начать' })
@@ -54,6 +57,23 @@ test('сборка, мост, повтор захвата мыши, пауза, 
   await expect(time).toHaveText('2:30')
   await frame.getByRole('button', { name: 'Обзор стрелками' }).click()
   await expect(time).not.toHaveText('2:30')
+  await page.keyboard.press('b')
+  const fieldGear = frame.getByRole('dialog', { name: 'Снаряжение' })
+  await expect(fieldGear.getByText('Комплект Лёши')).toBeVisible()
+  await fieldGear.getByRole('button', { name: 'Включить', exact: true }).click()
+  await expect(fieldGear.getByRole('button', { name: 'Узкая струя', exact: true })).toBeVisible()
+  await fieldGear.getByRole('button', { name: 'Продолжить' }).click()
+  await frame.getByRole('button', { name: 'Обзор стрелками' }).click()
+  await expect(frame.getByTestId('field')).toContainText('Распылитель')
+  await page.keyboard.press('q')
+  await expect(frame.getByTestId('field')).toContainText('Узкая струя')
+  const door = frame.getByText('Открыть дверь', { exact: true })
+  await page.keyboard.down('w')
+  try { await expect(door).toBeVisible() } finally { await page.keyboard.up('w') }
+  await expect(frame.getByText('Поручить Лёше')).toBeVisible()
+  await page.keyboard.press('4')
+  await expect(door).toBeHidden()
+  await expect(frame.locator('.safe-flag')).toBeVisible()
   await page.evaluate(() => (window as unknown as { sendGame: (s: string) => void }).sendGame('pause'))
   const pause = frame.getByRole('dialog', { name: 'Пауза' })
   await expect(pause).toBeVisible()

@@ -10,12 +10,18 @@ export const difficulty = {
 } satisfies Record<Difficulty, object>
 
 export const gear = {
-  spray: { name: 'Распылитель', cost: 180, description: 'Широкая струя вблизи', symbol: 'spray' },
-  cylinder: { name: 'Запасной баллон', cost: 310, description: '+44 единицы воздуха', symbol: 'air' },
-  thermal: { name: 'Тепловизор', cost: 270, description: 'F · Видит людей и очаги в дыму', symbol: 'thermal' },
-  axe: { name: 'Инструмент взлома', cost: 140, description: 'Быстрее вскрывает двери', symbol: 'axe' },
-  fan: { name: 'Дымосос', cost: 200, description: 'Усиливает отвод дыма через окно', symbol: 'fan' },
-  stretcher: { name: 'Спасательные носилки', cost: 150, description: 'Ускоряют эвакуацию', symbol: 'rescue' },
+  spray: { name: 'Распылитель', cost: 180, symbol: 'spray',
+    description: 'Q · переключает узкую и широкую струю', partnerDescription: 'Сам применяет широкий факел при тушении' },
+  cylinder: { name: 'Запасной баллон', cost: 310, symbol: 'air',
+    description: 'R · пополняет воздух на 44 ед. один раз', partnerDescription: 'Подключает сам, когда воздух на исходе' },
+  thermal: { name: 'Тепловизор', cost: 270, symbol: 'thermal',
+    description: 'F · включает обзор через дым', partnerDescription: 'Сообщает о замеченных в дыму людях' },
+  axe: { name: 'Инструмент взлома', cost: 140, symbol: 'axe',
+    description: 'Взять в B, удерживать E у двери', partnerDescription: '4 · вскрывает дверь по команде' },
+  fan: { name: 'Дымосос', cost: 200, symbol: 'fan',
+    description: 'Взять в B, удерживать E у открытого окна', partnerDescription: '4 · ставит дымосос у открытого окна' },
+  stretcher: { name: 'Спасательные носилки', cost: 150, symbol: 'rescue',
+    description: 'Взять в B, удерживать E у пострадавшего', partnerDescription: '4 · выносит пострадавшего на носилках' },
 } as const
 export type Gear = keyof typeof gear
 export type Equipment = { you: Gear[]; partner: Gear[] }

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { calls, type Call } from './sim/content'
 import { clamp } from './sim/fire'
+import { gear } from './sim/campaign'
 import type { Round } from './sim'
 import type { Game } from './game'
 
@@ -29,7 +30,8 @@ export function MapView({ call, round, compact = false }: { call: Call; round?: 
     if (!round && pos === call.spawn.join(',')) return 'player'
     if (round && keys && Math.floor(round.partner.x) === x && Math.floor(round.partner.z) === y) return 'partner'
     if ((!round && fired.has(pos)) || (round && keys && round.fire.burning(index))) return 'fire'
-    if ((!round && rescued.has(pos)) || (round && keys && round.victims.some(v => v.state === 'waiting' && round.cell(v.pos) === index))) return 'victim'
+    if ((!round && rescued.has(pos)) || round?.victims.some(v =>
+      v.state === 'waiting' && round.cell(v.pos) === index && (keys || round.crew.spotted.has(v.id)))) return 'victim'
     if ((!round && objectives.has(pos)) || (round && keys && round.objectives.some(o => !o.done && round.cell(o.pos) === index))) return 'goal'
     if (tile === 'D' && round?.fire.doors.has(index)) return 'floor'
     return ({ '#': 'wall', '.': 'floor', D: 'door', s: 'safe' })[tile]
@@ -62,6 +64,7 @@ export function FieldHUD({ game }: { game: Game }) {
   const air = r.air / r.maxAir
   const fires = r.fire.count()
   const distance = Math.hypot(r.player.x - r.partner.x, r.player.z - r.partner.z)
+  const canAsk = !r.crew.busy && (r.carrying || r.target?.assist)
   return <>
     <div className={'mask' + (r.thermal ? ' thermal' : '')}>
       <div className="danger-glow" style={{ opacity: clamp(r.heat * .62 + r.fire.lastFlare * .18 + (air < .28 ? .36 : 0), 0, .78) }} />
@@ -83,8 +86,10 @@ export function FieldHUD({ game }: { game: Game }) {
       </div>
       <div className="reticle" aria-hidden="true"><i /><i /><i /><i /><b /></div>
       {(r.target || r.carrying) && <div className="action-label" role="status">
-        <div>{r.target ? <><Key>E</Key><strong>{r.target.label}</strong></> : <strong>+ {r.carrying?.name} · к выходу</strong>}</div>
-        {!!r.target && <div className="hold-bar"><span style={{ width: Math.round(r.hold * 100) + '%' }} /></div>}
+        <div>{r.target ? <><Key>{r.target.partnerOnly ? '4' : 'E'}</Key><strong>{r.target.label}</strong></> :
+          <strong>+ {r.carrying?.name} · к выходу</strong>}</div>
+        {r.target && !r.target.partnerOnly && <div className="hold-bar"><span style={{ width: Math.round(r.hold * 100) + '%' }} /></div>}
+        {canAsk && !r.target?.partnerOnly && <small><Key>4</Key>{r.carrying ? 'Передать Лёше' : 'Поручить Лёше'}</small>}
         {r.target?.danger && r.hints && <small>Горячая дверь · возможна вспышка</small>}
       </div>}
       {r.noticeClock > 0 && <div className="radio-caption" key={r.notice}><span className="radio-ticks">▂▅▃▆</span><span>{r.notice}</span></div>}
@@ -94,11 +99,14 @@ export function FieldHUD({ game }: { game: Game }) {
           <Gauge title="ВОДА" value={r.water / r.maxWater} water />
           {r.safe() && <span className="safe-flag">● БЕЗОПАСНАЯ ЗОНА · ПОПОЛНЕНИЕ</span>}
         </div>
-        <div className={'partner-status' + (distance > 4.9 ? ' far' : '')}>
-          <span className="partner-icon">◇</span><div><b>Лёша</b><small>{distance > 4.9 ? 'Слишком далеко' : ({ follow: 'За тобой', hold: 'Держит позицию', cover: 'Прикрывает' })[r.command]}</small></div>
+        <div className={'partner-status' + (distance > 4.9 && !r.crew.onRescue ? ' far' : '')}>
+          <span className="partner-icon">◇</span><div><b>Лёша</b><small>{distance > 4.9 && !r.crew.busy ? 'Далеко · ' : ''}{r.crew.status}</small></div>
         </div>
-        <div className="field-keys"><div><Key>1</Key> За мной <Key>2</Key> Стой <Key>3</Key> Вода</div>
-          <div><Key>C</Key> Присесть <Key>B</Key> Снаряжение {r.has('thermal') || r.has('thermal', 'partner') ? <><Key>F</Key> Тепловизор</> : null}</div>
+        <div className="field-keys"><div><Key>1</Key> За мной <Key>2</Key> Стой <Key>3</Key> Вода <Key>4</Key> Поручить</div>
+          <div><Key>C</Key> Присесть <Key>B</Key> Снаряжение</div>
+          <div>{r.has('spray') && <><Key>Q</Key> {r.sprayWide ? 'Распылитель' : 'Узкая струя'} </>}
+            {r.spare && <><Key>R</Key> Баллон </>}{r.has('thermal') && <><Key>F</Key> Тепловизор</>}</div>
+          {r.handTool && <div>Готово к работе · {gear[r.handTool].name}</div>}
           {r.safe() && <div><Key>X</Key> Передать вызов</div>}
         </div>
       </div>

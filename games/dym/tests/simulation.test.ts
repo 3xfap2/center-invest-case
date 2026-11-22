@@ -54,7 +54,7 @@ describe('Состояние пожара', () => {
 })
 
 describe('Игрок и кампания', () => {
-  it('бег расходует больше воздуха, баллон и сложность меняют запас', () => {
+  it('бег расходует больше воздуха, сложность меняет ёмкость', () => {
     const c = newCampaign('Лена', 'normal')
     const walk = new Round(calls[0], emptyEquipment(), c)
     const run = new Round(calls[0], { you: ['cylinder'], partner: [] }, c)
@@ -62,7 +62,7 @@ describe('Игрок и кампания', () => {
     Object.assign(run.player, walk.player)
     walk.step({ ...blankInput, z: 1, yaw: Math.PI })
     run.step({ ...blankInput, z: 1, yaw: Math.PI, sprint: true })
-    expect(run.maxAir - walk.maxAir).toBe(44)
+    expect(run.maxAir).toBe(walk.maxAir)
     expect(run.maxAir - run.air).toBeGreaterThan(walk.maxAir - walk.air)
 
     const easy = new Round(calls[0], emptyEquipment(), newCampaign('Лена', 'easy'))
@@ -171,6 +171,159 @@ class Driver {
     expect(fire.burning(seat)).toBe(false)
   }
 }
+
+describe('Снаряжение и напарник в здании', () => {
+  const campaign = newCampaign('Лена', 'normal')
+  const call = calls[0]
+  const tick = (round: Round, count: number) => {
+    for (let i = 0; i < count; i++) round.step(blankInput)
+  }
+
+  it('включает купленные режимы и расходует запасной баллон один раз', () => {
+    const r = new Round(call, { you: ['spray', 'thermal', 'cylinder'], partner: [] }, campaign)
+    const unequipped = new Round(call, emptyEquipment(), campaign)
+    unequipped.useGear('thermal')
+    unequipped.useGear('spray')
+    expect(unequipped.thermal || unequipped.sprayWide).toBe(false)
+    expect(r.sprayWide || r.thermal).toBe(false)
+    r.useGear('spray')
+    r.useGear('thermal')
+    expect(r.sprayWide && r.thermal).toBe(true)
+    r.useGear('spray')
+    expect(r.sprayWide).toBe(false)
+    r.useGear('cylinder')
+    expect(r.spare).toBe(true)
+    r.air = 30
+    r.useGear('cylinder')
+    expect(r.air).toBe(74)
+    expect(r.spare).toBe(false)
+    r.air = 30
+    r.useGear('cylinder')
+    expect(r.air).toBe(30)
+  })
+
+  it('использует подготовленные носилки и ускоряет вскрытие инструментом', () => {
+    const r = new Round(call, { you: ['stretcher', 'axe'], partner: [] }, campaign)
+    Object.assign(r.player, r.exitPoint)
+    r.useGear('axe')
+    const d = new Driver(r)
+    d.interact(r.entry, 'door-' + r.cell(r.entry), 7)
+    expect(r.fire.doors.has(r.cell(r.entry))).toBe(true)
+    r.useGear('stretcher')
+    const person = call.victims[0]
+    d.go(person.at, true)
+    d.interact(center(person.at), 'victim-0', 16)
+    expect(r.carrying?.name).toBe(person.name)
+    expect(r.speed(false)).toBe(2.15)
+  })
+
+  it('включает дымосос у открытого окна за игрока или за Лёшу', () => {
+    for (const owner of ['you', 'partner'] as const) {
+      const equipment = emptyEquipment()
+      equipment[owner] = ['fan']
+      const r = new Round(call, equipment, campaign)
+      const vent = r.objectives.find(o => o.kind === 'vent')!
+      Object.assign(r.player, { x: vent.pos.x, z: vent.pos.z + .8 })
+      Object.assign(r.partner, r.player)
+      const d = new Driver(r)
+      d.interact(vent.pos, vent.id, Math.ceil(vent.seconds / STEP) + 1)
+      expect(r.fire.vent).toBeCloseTo(.075)
+      if (owner === 'you') {
+        r.useGear('fan')
+        d.interact(vent.pos, 'fan-' + vent.id, 25)
+      } else {
+        r.step({ ...blankInput, yaw: yawAt(r.player, vent.pos) })
+        expect(r.target?.partnerOnly).toBe(true)
+        r.orderHelp()
+        tick(r, 35)
+      }
+      expect(r.fanPosition).toEqual(vent.pos)
+      expect(r.fire.vent).toBeCloseTo(.26)
+    }
+  })
+
+  it('Лёша сам тушит безопасный очаг и использует свой баллон', () => {
+    const r = new Round(call, { you: [], partner: ['cylinder', 'spray'] }, campaign)
+    Object.assign(r.player, { x: 6.5, z: 9.5 })
+    Object.assign(r.partner, { x: 5.5, z: 9.5 })
+    r.crew.air = 22
+    const fuel = r.fire.index(5, 8)
+    const before = r.fire.heat[fuel]
+    r.step(blankInput)
+    expect(r.crew.coverTarget).toEqual(r.fire.center(fuel))
+    expect(r.fire.heat[fuel]).toBeLessThan(before)
+    expect(r.crew.water).toBeLessThan(54)
+    expect(r.crew.spare).toBe(false)
+    expect(r.crew.air).toBeGreaterThan(60)
+    r.fire.heat.fill(0)
+    r.fire.ignite(fuel, 'oil', 1)
+    r.step(blankInput)
+    expect(r.crew.coverTarget).toBeNull()
+  })
+
+  it('Лёша вскрывает дверь, находит пострадавшего и выносит его к выходу', () => {
+    const r = new Round(call, { you: [], partner: ['axe', 'stretcher', 'thermal'] }, campaign)
+    const d = new Driver(r)
+    d.go([9, 11])
+    r.step({ ...blankInput, yaw: yawAt(r.player, r.entry) })
+    r.orderHelp()
+    tick(r, 70)
+    expect(r.fire.doors.has(r.cell(r.entry))).toBe(true)
+    const person = r.victims[0]
+    d.go(call.victims[0].at, true)
+    tick(r, 65)
+    expect(r.crew.spotted.has(person.id)).toBe(true)
+    r.step({ ...blankInput, yaw: yawAt(r.player, person.pos) })
+    expect(r.target?.id).toBe(person.id)
+    r.orderHelp()
+    tick(r, 38)
+    expect(r.crew.carrying).toBe(person)
+    r.order('hold')
+    expect(r.crew.carrying).toBe(person)
+    tick(r, 230)
+    expect(person.state).toBe('saved')
+    expect(r.saved).toBe(1)
+    expect(r.support).toBeGreaterThanOrEqual(8)
+  })
+
+  it('игрок может передать Лёше человека, которого уже несёт', () => {
+    const r = new Round(call, emptyEquipment(), campaign)
+    const d = new Driver(r)
+    d.go(call.victims[0].at, true)
+    tick(r, 80)
+    const person = r.victims[0]
+    d.interact(person.pos, person.id, 26)
+    expect(r.carrying).toBe(person)
+    r.orderHelp()
+    expect(r.carrying).toBeNull()
+    expect(r.crew.carrying).toBe(person)
+    tick(r, 280)
+    expect(r.saved).toBe(1)
+  })
+})
+
+it.each(calls)('позволяет открыть и пройти каждую дверь с обеих сторон: $name', call => {
+  const campaign = newCampaign('Лена', 'normal')
+  const layout = new Round(call, emptyEquipment(), campaign)
+  expect(layout.fire.neighbors[layout.cell(layout.entry)].some(i => layout.fire.safe(i))).toBe(true)
+  for (const door of layout.doorCells) {
+    const cell = layout.cell(door)
+    const neighbors = layout.fire.neighbors[cell]
+    expect(neighbors).toHaveLength(2)
+    const key = call.objectives.find(o => o.kind === 'door' && layout.cell(center(o.at)) === cell)
+    for (const [from, to] of [neighbors, [...neighbors].reverse()]) {
+      const round = new Round(call, emptyEquipment(), campaign)
+      round.fire.heat.fill(0)
+      Object.assign(round.player, round.fire.center(from))
+      const driver = new Driver(round)
+      driver.walk(door)
+      expect(round.cell(round.player)).toBe(from)
+      driver.interact(door, key?.id ?? 'door-' + cell, Math.ceil((key?.seconds ?? .68) / STEP) + 1)
+      driver.walk(round.fire.center(to))
+      expect(round.cell(round.player)).toBe(to)
+    }
+  }
+})
 
 it('позволяет пройти пять вызовов от инструктажа до лучшего исхода', () => {
   let campaign = newCampaign('Лена', 'normal')

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { camp, types } from '../src/camp/content';
-import { activity, afterSlot, afterTalk, answerPicture, assign, chooseRanking, createGame, demoEnding, difficultyRules, fromSave, observe, outcome, playerRadar, presentPaths, profile, recommend, slotSeconds, spreadAssignments, startSlot, talk, tick, toSave } from '../src/camp/game';
+import { activity, afterSlot, afterTalk, answerPicture, assign, chooseRanking, createGame, demoEnding, difficultyRules, fromSave, observe, outcome, playerRadar, presentPaths, profile, recommend, slotSeconds, spreadAssignments, startSlot, talk, tick, toSave, visitSchool } from '../src/camp/game';
 import type { CampState } from '../src/camp/game';
 
 const liza = camp.teens.find(teen => teen.id === 'liza')!;
@@ -72,8 +72,27 @@ describe('Camp', () => {
     expect(difficultyRules.hard.hint).toBe(false);
   });
 
+  it('requires the school visit before the first workshop and persists it', () => {
+    const planned = { ...base(), assignments: spreadAssignments() };
+    expect(assign(planned, liza.id, camp.school.id)).toBe(planned);
+    expect(startSlot(planned)).toBe(planned);
+    const visited = visitSchool(planned);
+    expect(visitSchool(visited)).toBe(visited);
+    expect(startSlot(fromSave(toSave(visited))!).phase).toBe('watch');
+  });
+
+  it('keeps progress from older 66-second saves and applies the new visit before the next slot', () => {
+    const { schoolVisited, ...legacy } = given();
+    expect(schoolVisited).toBe(false);
+    const migrated = fromSave({ ...legacy, elapsed: 33, durationSec: 33 })!;
+    expect(migrated).toMatchObject({ phase: 'watch', schoolVisited: false, elapsed: 22.5, durationSec: 33 });
+    const next = afterSlot(tick(migrated, 22.5, null));
+    expect(next).toMatchObject({ phase: 'plan', slot: 1, completed: 1 });
+    expect(startSlot(next)).toBe(next);
+  });
+
   it('takes nine slots and three talks to reach recommendations', () => {
-    let state = { ...base(), assignments: spreadAssignments() };
+    let state = visitSchool({ ...base(), assignments: spreadAssignments() });
     for (let day = 0; day < camp.days.length; day++) {
       for (let slot = 0; slot < 3; slot++) {
         state = startSlot(state);
